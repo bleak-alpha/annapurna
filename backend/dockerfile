@@ -1,27 +1,49 @@
-# Multi-stage build optimized for your setup
-FROM maven:3.9-openjdk-17-slim AS builder
+# backend/Dockerfile
+FROM eclipse-temurin:17-jdk-alpine AS build
 
 WORKDIR /app
+
+# Copy Maven configuration files
 COPY pom.xml .
+COPY mvnw .
+COPY .mvn .mvn
+
+# Make mvnw executable
+RUN chmod +x ./mvnw
+
+# Download dependencies (this layer will be cached if pom.xml doesn't change)
+RUN ./mvnw dependency:go-offline -B
+
+# Copy source code
 COPY src ./src
 
-ARG ENVIRONMENT=production
-ARG SPRING_PROFILES_ACTIVE=docker
+# Build the application
+RUN ./mvnw clean package -DskipTests
 
-RUN mvn clean package -DskipTests -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE}
-
-FROM openjdk:17-jre-slim
-
-# Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Runtime stage
+FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
 
-COPY --from=builder /app/target/*.jar app.jar
+# Create non-root user for security
+RUN addgroup -g 1001 -S annapurna && \
+    adduser -S annapurna -u 1001
 
-# Create logs directory
-RUN mkdir -p /app/logs
+# Copy the built jar from build stage
+COPY --from=build /app/target/*.jar app.jar
 
+# Change ownership
+RUN chown annapurna:annapurna app.jar
+
+# Switch to non-root user
+USER annapurna
+
+# Expose port
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
+# Run the application
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

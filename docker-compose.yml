@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_HOST_AUTH_METHOD: ${DB_AUTH_METHOD:-trust}
     volumes:
-      #- postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "${DB_PORT:-5432}:5432"
@@ -21,41 +21,42 @@ services:
       retries: 5
 
  # Spring Boot Backend
-#  backend:
-#    build:
-#      context: ./backend
- #     dockerfile: Dockerfile
-#      args:
-#        - ENVIRONMENT=${ENVIRONMENT:-production}
-#        - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-docker}
-#    container_name: annapurna_backend
-#    environment:
-#      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-docker}
-#      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${DB_NAME}
-#     - SPRING_DATASOURCE_USERNAME=${DB_USER}
-#      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-#      - SPRING_JPA_HIBERNATE_DDL_AUTO=${HIBERNATE_DDL_AUTO:-validate}
-#      - SPRING_JPA_SHOW_SQL=${SHOW_SQL:-false}
-##      - SERVER_PORT=8080
-#      - CORS_ALLOWED_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://frontend:3000}
-#      - LOGGING_LEVEL_COM_CANTEEN=${LOG_LEVEL:-INFO}
-#    ports:
-#      - "${BACKEND_PORT:-8080}:8080"
-#    depends_on:
-##      postgres:
-#        condition: service_healthy
-#    networks:
-#      - annapurna-net
-#    restart: unless-stopped
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 3
-#      start_period: 60s
-#    volumes:
-#      - ./logs/backend:/app/logs
-#      - ${BACKEND_VOLUME_MOUNT:-empty_volume}:/app/src:${VOLUME_MODE:-ro}
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - ENVIRONMENT=${ENVIRONMENT:-production}
+        - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-docker}
+    container_name: annapurna_backend
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-docker}
+      # FIX: Change postgres to database (matches service name)
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://database:5432/${DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=${HIBERNATE_DDL_AUTO:-validate}
+      - SPRING_JPA_SHOW_SQL=${SHOW_SQL:-false}
+      - SERVER_PORT=8080
+      - CORS_ALLOWED_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://frontend:3000}
+      - LOGGING_LEVEL_COM_CANTEEN=${LOG_LEVEL:-INFO}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - annapurna-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    volumes:
+      - ./logs/backend:/app/logs
+      - ${BACKEND_VOLUME_MOUNT:-empty_volume}:/app/src:${VOLUME_MODE:-ro}
 
   # React Frontend
 #  frontend:
