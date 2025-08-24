@@ -23,7 +23,7 @@ services:
  # Spring Boot Backend
   backend:
     build:
-      context: ./backend
+      context: ./annapurna-backend
       dockerfile: Dockerfile
       args:
         - ENVIRONMENT=${ENVIRONMENT:-production}

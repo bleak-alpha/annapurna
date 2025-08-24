@@ -3,9 +3,9 @@ spring:
     name: annapurna-backend
   
   datasource:
-    url: jdbc:postgresql://localhost:5432/annapurna_db
-    username: apps
-    password: apps123
+    url: jdbc:postgresql://localhost:5432/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     
   jpa:
@@ -17,10 +17,10 @@ spring:
       hibernate:
         format_sql: true
         jdbc:
-          time_zone: UTC
+          time_zone: ${TZ}
 
 server:
-  port: 8080
+  port: ${BACKEND_PORT}
 
 management:
   endpoints:
