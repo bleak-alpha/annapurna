@@ -3,7 +3,6 @@
 /home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/repository/CustomerPersonAccRepository.java
 /home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/dto/CreateOrderRequest.java
 /home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/dto/OrderItemRequest.java
-/home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/health/DatabaseHealthIndicator.java
 /home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/config/WebSocketConfig.java
 /home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/repository/OrderLineRepository.java
 /home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/controller/CustomerController.java
@@ -12,6 +11,7 @@
 /home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/model/CostSheet.java
 /home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/service/OrderService.java
 /home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/exception/MenuItemNotFoundException.java
+/home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/health/HealthController.java
 /home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/model/FoodMst.java
 /home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/dto/PendingOrderResponse.java
 /home/bleak/Project/annapurna/annapurna-backend/src/main/java/com/annapurna/model/CustomerPersonAcc.java

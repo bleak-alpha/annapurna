@@ -31,21 +31,23 @@ public class OrderService {
         orderHeader.setWhoGaveOrder(request.getWhoGaveOrder());
         orderHeader.setIsDeferred(request.getIsDeferred());
         
-        if (request.getCustomerId() != null) {
-            CustomerPersonAcc customer = customerRepository.findById(request.getCustomerId())
-                .orElseThrow(() -> new CustomerNotFoundException("Customer not found"));
-            orderHeader.setCustomer(customer);
-            orderHeader.setIsKnownCustomer(true);
-        }
-        
-        orderHeader = orderHeaderRepository.save(orderHeader);
-        
-        List<OrderLine> orderLines = new ArrayList<>();
+        // In OrderService.java, ensure proper method calls
+if (request.getCustomerId() != null) {
+    CustomerPersonAcc customer = customerRepository.findById(request.getCustomerId())
+        .orElseThrow(() -> new CustomerNotFoundException("Customer not found"));
+    orderHeader.setCustomer(customer);
+    orderHeader.setIsKnownCustomer(true);
+}
+
+    orderHeader = orderHeaderRepository.save(orderHeader);
+    List<OrderLine> orderLines = new ArrayList<>();
         BigDecimal totalOrderAmount = BigDecimal.ZERO;
-        
-        for (OrderItemRequest itemRequest : request.getItems()) {
-            FoodMst foodItem = foodMstRepository.findByItemCodeAndInUseTrue(itemRequest.getItemCode())
-                .orElseThrow(() -> new MenuItemNotFoundException("Food item not found: " + itemRequest.getItemCode()));
+
+for (OrderItemRequest itemRequest : request.getItems()) {
+    FoodMst foodItem = foodMstRepository.findByItemCodeAndInUseTrue(itemRequest.getItemCode())
+        .orElseThrow(() -> new MenuItemNotFoundException("Food item not found: " + itemRequest.getItemCode()));
+    
+    // Rest of the logic...
             
             CostSheet costSheet = costSheetRepository.findByItemIdAndIsActiveTrue(foodItem.getItemId())
                 .orElseThrow(() -> new MenuItemNotFoundException("Cost not found for item: " + itemRequest.getItemCode()));
