@@ -1,0 +1,38 @@
+# Java
+backend/target/
+backend/target/*.jar
+backend/target/*.war
+backend/target/*.ear
+backend/target/*.class
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+.dockerignore
+
+# Database
+*.db
+*.sqlite
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS
+.DS_Store
+Thumbs.db
+EOF

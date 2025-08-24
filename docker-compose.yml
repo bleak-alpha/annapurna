@@ -1,0 +1,98 @@
+# docker-compose.yml
+services:
+  database:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_HOST_AUTH_METHOD: ${DB_AUTH_METHOD:-trust}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    networks:
+      - annapurna-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+ # Spring Boot Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - ENVIRONMENT=${ENVIRONMENT:-production}
+        - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-docker}
+    container_name: annapurna_backend
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-docker}
+      # FIX: Change postgres to database (matches service name)
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://database:5432/${DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=${HIBERNATE_DDL_AUTO:-validate}
+      - SPRING_JPA_SHOW_SQL=${SHOW_SQL:-false}
+      - SERVER_PORT=8080
+      - CORS_ALLOWED_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://frontend:3000}
+      - LOGGING_LEVEL_COM_CANTEEN=${LOG_LEVEL:-INFO}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - annapurna-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    volumes:
+      - ./logs/backend:/app/logs
+      - ${BACKEND_VOLUME_MOUNT:-empty_volume}:/app/src:${VOLUME_MODE:-ro}
+
+  # React Frontend
+#  frontend:
+  #  build:
+ #     context: ./frontend
+#      dockerfile: Dockerfile
+#      args:
+#        - ENVIRONMENT=${ENVIRONMENT:-production}
+#        - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8080}
+#        - REACT_APP_WS_URL=${REACT_APP_WS_URL:-ws://localhost:8080}
+#    container_name: annapurna_frontend
+#    ports:
+#     - "${FRONTEND_PORT:-3000}:3000"
+  #  depends_on:
+ #     - backend
+#    networks:
+#      - annapurna-net
+#    restart: unless-stopped
+#    healthcheck:
+ #     test: ["CMD", "curl", "-f", "http://localhost:3000"]
+ #     interval: 30s
+ #     timeout: 10s
+ #     retries: 3
+#    volumes:
+#    - ./logs/frontend:/app/logs
+ #     - ${FRONTEND_VOLUME_MOUNT:-empty_volume}:/app/src:${VOLUME_MODE:-ro}
+#    environment:
+#      - CHOKIDAR_USEPOLLING=${CHOKIDAR_USEPOLLING:-false}
+#      - FAST_REFRESH=${FAST_REFRESH:-false}
+
+
+volumes:
+  postgres_data:
+  empty_volume:
+    driver: local
+
+networks:
+  annapurna-net:
+    driver: bridge
