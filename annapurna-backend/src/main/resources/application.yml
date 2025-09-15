@@ -48,10 +48,12 @@ management:
     health:
       show-details: always
       show-components: always
+  # Disable problematic metrics in Docker environment
   metrics:
     enable:
       system: false
       process: false
+      processor: false  # This is the key fix
       jvm: true
       tomcat: true
   health:
