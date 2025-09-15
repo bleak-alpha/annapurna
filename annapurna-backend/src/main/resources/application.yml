@@ -14,6 +14,11 @@ spring:
     show-sql: false
     open-in-view: false
 
+    autoconfigure:
+    exclude:
+      - org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.metrics.SystemMetricsAutoConfiguration
+
 server:
   port: 8080
 
@@ -28,12 +33,6 @@ management:
     health:
       enabled: false
 
-# Disable auto-configuration for actuator
-spring:
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration
-      - org.springframework.boot.actuate.autoconfigure.metrics.SystemMetricsAutoConfiguration
 
 logging:
   level:
