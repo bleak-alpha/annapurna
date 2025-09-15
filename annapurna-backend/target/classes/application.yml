@@ -14,7 +14,7 @@ spring:
     show-sql: false
     open-in-view: false
 
-    autoconfigure:
+  autoconfigure:
     exclude:
       - org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration
       - org.springframework.boot.actuate.autoconfigure.metrics.SystemMetricsAutoConfiguration
@@ -32,7 +32,6 @@ management:
   endpoint:
     health:
       enabled: false
-
 
 logging:
   level:
