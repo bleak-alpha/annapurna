@@ -7,82 +7,35 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
-    hikari:
-      connection-timeout: 60000
-      initialization-fail-timeout: 60000
-      maximum-pool-size: 10
-      minimum-idle: 5
-      idle-timeout: 300000
-      max-lifetime: 1800000
     
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: false
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    properties:
-      hibernate:
-        format_sql: true
-        jdbc:
-          time_zone: UTC
-        show_sql: false
-    defer-datasource-initialization: true
     open-in-view: false
 
 server:
   port: 8080
-  shutdown: graceful
-  tomcat:
-    connection-timeout: 20000
-    max-connections: 8192
-    threads:
-      max: 200
-      min-spare: 10
 
+# COMPLETELY DISABLE ACTUATOR AND METRICS
 management:
   endpoints:
-    web:
-      exposure:
-        include: health,info
+    enabled-by-default: false
+  metrics:
+    export:
+      enabled: false
   endpoint:
     health:
-      show-details: always
-      show-components: always
-  # Disable problematic metrics in Docker environment
-  metrics:
-    enable:
-      system: false
-      process: false
-      processor: false  # This is the key fix
-      jvm: true
-      tomcat: true
-  health:
-    db:
-      enabled: true
+      enabled: false
+
+# Disable auto-configuration for actuator
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.metrics.SystemMetricsAutoConfiguration
 
 logging:
   level:
     com.annapurna: INFO
     org.springframework: WARN
-    org.hibernate.SQL: WARN
-    org.springframework.web: WARN
-    org.springframework.security: WARN
-    org.apache.tomcat: WARN
-    com.zaxxer.hikari: WARN
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-
-# CORS Configuration (if needed beyond WebConfig)
-cors:
-  allowed-origins: ${CORS_ORIGINS:http://localhost:3000}
-  allowed-methods: GET,POST,PUT,DELETE,OPTIONS
-  allowed-headers: "*"
-  allow-credentials: true
-
-# Custom Application Properties
-app:
-  customer:
-    number-format: "CUST%04d"
-  order:
-    default-staff: "System"
