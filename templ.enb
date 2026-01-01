@@ -3,6 +3,7 @@ DB_NAME=
 DB_USER=  
 DB_PASSWORD=
 DB_PORT=
+DB_LOCALE=
 
 #Backend Configuration
 BACKEND_PORT=

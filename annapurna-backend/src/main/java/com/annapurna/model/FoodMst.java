@@ -17,8 +17,11 @@ public class FoodMst {
     @Column(name = "item_id")
     private Integer itemId;
     
-    @Column(name = "item_code", unique = true, nullable = false)
+    @Column(name = "item_code", unique = true, nullable = false, length = 20)
     private String itemCode;
+    
+    @Column(name = "item_number", unique = true, nullable = false)
+    private Integer itemNumber;
     
     @Column(name = "item_description", nullable = false)
     private String itemDescription;

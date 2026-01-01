@@ -22,6 +22,9 @@ public class OrderLine {
     @JoinColumn(name = "header_id", nullable = false)
     private OrderHeader orderHeader;
     
+    @Column(name = "line_number", nullable = false)
+    private Integer lineNumber;
+    
     @Column(name = "creation_date")
     private LocalDateTime creationDate = LocalDateTime.now();
     
@@ -37,6 +40,9 @@ public class OrderLine {
     
     @Column(name = "total_cost", precision = 10, scale = 2)
     private BigDecimal totalCost;
+    
+    @Column(name = "is_paid")
+    private Boolean isPaid = false;
     
     @Column(name = "is_served")
     private Boolean isServed = false;

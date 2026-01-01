@@ -1,7 +1,6 @@
 package com.annapurna.controller;
 
-import com.annapurna.dto.CreateOrderRequest;
-import com.annapurna.dto.PendingOrderResponse;
+import com.annapurna.dto.*;
 import com.annapurna.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,5 +35,15 @@ public class OrderController {
         
         orderService.markItemsAsServed(lineIds, servedBy);
         return ResponseEntity.ok().build();
+    }
+    
+    @GetMapping("/number/{orderNumber}")
+    public ResponseEntity<OrderResponse> getOrderByNumber(@PathVariable Long orderNumber) {
+        return ResponseEntity.ok(orderService.getOrderByNumber(orderNumber));
+    }
+    
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderResponse> getOrderById(@PathVariable Integer orderId) {
+        return ResponseEntity.ok(orderService.getOrderById(orderId));
     }
 }

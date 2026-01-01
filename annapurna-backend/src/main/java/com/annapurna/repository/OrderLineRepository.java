@@ -15,17 +15,18 @@ public interface OrderLineRepository extends JpaRepository<OrderLine, Integer> {
     
     @Query("""
         SELECT new com.annapurna.dto.PendingOrderResponse(
-            oh.headerId, oh.creationDate, 
+            oh.headerId, oh.orderNumber, oh.creationDate, 
             COALESCE(c.name, 'Walk-in Customer'),
-            fm.itemCode, fm.itemDescription, ol.quantity, ol.lineId,
-            ol.totalCost, oh.isPaid
+            fm.itemCode, fm.itemNumber, fm.itemDescription, 
+            ol.lineNumber, ol.quantity, ol.lineId,
+            ol.totalCost, oh.isPaidFull, oh.isDeferred
         )
         FROM OrderLine ol
         JOIN ol.orderHeader oh
         JOIN ol.foodMst fm
         LEFT JOIN oh.customer c
         WHERE ol.isServed = false
-        ORDER BY oh.creationDate ASC
+        ORDER BY oh.creationDate ASC, ol.lineNumber ASC
     """)
     List<PendingOrderResponse> getUnservedOrders();
     
@@ -41,4 +42,10 @@ public interface OrderLineRepository extends JpaRepository<OrderLine, Integer> {
     
     @Query("SELECT COUNT(*) FROM OrderLine ol WHERE ol.isServed = false")
     Long countPendingOrders();
+    
+    @Query("SELECT ol FROM OrderLine ol WHERE ol.orderHeader.headerId = :headerId ORDER BY ol.lineNumber")
+    List<OrderLine> findByHeaderId(@Param("headerId") Integer headerId);
+    
+    @Query("SELECT COUNT(*) FROM OrderLine ol WHERE ol.orderHeader.headerId = :headerId AND ol.isPaid = false")
+    Long countUnpaidLinesByHeaderId(@Param("headerId") Integer headerId);
 }

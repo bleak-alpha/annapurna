@@ -1,12 +1,14 @@
 package com.annapurna.service;
 
-import com.annapurna.model.CustomerPersonAcc;
-import com.annapurna.repository.CustomerPersonAccRepository;
+import com.annapurna.dto.*;
+import com.annapurna.model.*;
+import com.annapurna.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -14,6 +16,7 @@ import java.util.Optional;
 public class CustomerService {
     
     private final CustomerPersonAccRepository customerRepository;
+    private final CustomerOrderHistRepository orderHistRepository;
     
     public CustomerPersonAcc createCustomer(String name, String phone) {
         String customerNumber = generateCustomerNumber();
@@ -32,8 +35,39 @@ public class CustomerService {
     }
     
     @Transactional(readOnly = true)
-    public List<CustomerPersonAcc> getCustomersWithDues() {
-        return customerRepository.findCustomersWithDues();
+    public List<CustomerDuesResponse> getCustomersWithDues() {
+        List<CustomerPersonAcc> customers = customerRepository.findCustomersWithDues();
+        
+        return customers.stream()
+            .map(this::mapToCustomerDuesResponse)
+            .collect(Collectors.toList());
+    }
+    
+    private CustomerDuesResponse mapToCustomerDuesResponse(CustomerPersonAcc customer) {
+        List<CustomerOrderHist> unpaidHist = orderHistRepository.findUnpaidOrdersByCustomer(customer.getCustomerId());
+        
+        List<UnpaidOrderLineDto> unpaidLines = unpaidHist.stream()
+            .map(hist -> {
+                OrderLine line = hist.getOrderLine();
+                return new UnpaidOrderLineDto(
+                    line.getLineId(),
+                    line.getOrderHeader().getOrderNumber(),
+                    line.getCreationDate(),
+                    line.getFoodMst().getItemDescription(),
+                    line.getQuantity(),
+                    line.getTotalCost()
+                );
+            })
+            .collect(Collectors.toList());
+        
+        return new CustomerDuesResponse(
+            customer.getCustomerId(),
+            customer.getCustomerNumber(),
+            customer.getName(),
+            customer.getPhone(),
+            customer.getTotalDue(),
+            unpaidLines
+        );
     }
     
     private String generateCustomerNumber() {

@@ -17,7 +17,8 @@ public class CreateOrderRequest {
     @NotNull(message = "Staff name is required")
     private String whoGaveOrder;
     
-    private Boolean isDeferred = false;
+    private Boolean isDeferred;
+    private Boolean isPaidFull = true;
     
     @NotEmpty(message = "Order must contain at least one item")
     @Valid

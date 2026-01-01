@@ -1,5 +1,6 @@
 package com.annapurna.controller;
 
+import com.annapurna.dto.CustomerDuesResponse;
 import com.annapurna.model.CustomerPersonAcc;
 import com.annapurna.service.CustomerService;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +33,7 @@ public class CustomerController {
     }
     
     @GetMapping("/dues")
-    public ResponseEntity<List<CustomerPersonAcc>> getCustomersWithDues() {
+    public ResponseEntity<List<CustomerDuesResponse>> getCustomersWithDues() {
         return ResponseEntity.ok(customerService.getCustomersWithDues());
     }
 }

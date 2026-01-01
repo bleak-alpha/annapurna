@@ -9,8 +9,14 @@ import java.util.Optional;
 
 @Repository
 public interface CustomerPersonAccRepository extends JpaRepository<CustomerPersonAcc, Integer> {
+    
     Optional<CustomerPersonAcc> findByPhone(String phone);
     
-    @Query("SELECT c FROM CustomerPersonAcc c WHERE c.isActive = true AND c.totalDue > 0")
+    Optional<CustomerPersonAcc> findByCustomerNumber(String customerNumber);
+    
+    @Query("SELECT c FROM CustomerPersonAcc c WHERE c.isActive = true AND c.totalDue > 0 ORDER BY c.totalDue DESC")
     List<CustomerPersonAcc> findCustomersWithDues();
+    
+    @Query("SELECT c FROM CustomerPersonAcc c WHERE c.isActive = true ORDER BY c.name")
+    List<CustomerPersonAcc> findAllActiveCustomers();
 }

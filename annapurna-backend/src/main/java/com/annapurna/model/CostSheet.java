@@ -14,12 +14,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class CostSheet {
     @Id
-    @Column(name = "item_id")
-    private Integer itemId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "cost_id")
+    private Integer costId;
     
-    @OneToOne
-    @MapsId
-    @JoinColumn(name = "item_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "item_id", nullable = false)
     private FoodMst foodMst;
     
     @Column(name = "cost", nullable = false, precision = 10, scale = 2)
@@ -30,4 +30,7 @@ public class CostSheet {
     
     @Column(name = "creation_date")
     private LocalDateTime creationDate = LocalDateTime.now();
+    
+    @Column(name = "inactive_date")
+    private LocalDateTime inactiveDate;
 }

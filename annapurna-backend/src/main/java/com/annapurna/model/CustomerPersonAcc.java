@@ -18,13 +18,13 @@ public class CustomerPersonAcc {
     @Column(name = "customer_id")
     private Integer customerId;
     
-    @Column(name = "customer_number", unique = true, nullable = false)
+    @Column(name = "customer_number", unique = true, nullable = false, length = 50)
     private String customerNumber;
     
     @Column(name = "name", nullable = false)
     private String name;
     
-    @Column(name = "phone")
+    @Column(name = "phone", length = 20)
     private String phone;
     
     @Column(name = "creation_date")
