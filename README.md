@@ -42,9 +42,9 @@ Creating custom DB schema based on the flowchart
 erDiagram
 
     FOO_FOOD_MST {
-        string Item_Code
-        string Item_Description
         int Item_ID
+        string Item_Code
+        string Item_Desc 
         date Creation_Date
         boolean In_Use
     }
@@ -59,13 +59,15 @@ erDiagram
 
     OM_ORDER_HEADERS {
         int Header_ID
+        int Order_Number
+        int Customer_ID
         date Creation_Date
-        string Given_By
         date Ordered_When
-        boolean Is_Paid_Full
-        boolean Is_Deferred
-        boolean Known_Customer
-        float Total_Due
+        String Payment_Status
+        float Order_Amount
+        float Amount_Paid
+        date Paid_On
+        int Payment_ID
     }
 
     OM_ORDER_LINES {
@@ -74,8 +76,8 @@ erDiagram
         date Creation_Date
         int Item_ID
         int Quantity
-        float Cost_Per_Item
-        float Total_Cost
+        int Line_Cost
+        boolean Is_served
     }
 
     CUST_PERSON_ACC {
@@ -91,10 +93,10 @@ erDiagram
         int Customer_ID
         int Payment_ID
         int Header_ID
-        int Line_ID
-        int Item_ID
-        int Quantity
+        float Order_Amount
         float Total_Cost
+        float Amount_Paid
+        float Paid_On
     }
 
     CUST_PAYMENT_HIST {
@@ -102,16 +104,17 @@ erDiagram
         date Creation_Date
         boolean Is_Paid
         date Payment_Date
-        float Payment
+        float Amount_Paid
+        float Amount_Remaining
     }
 
     %% Relationships
 
-    FOO_FOOD_MST ||--o{ FOO_COST_SHEET : "has cost details"
-    FOO_COST_SHEET ||--o{ OM_ORDER_LINES : "used for item pricing"
+    FOO_FOOD_MST ||--o{ FOO_COST_SHEET : "Header Line relationship model"
+    OM_ORDER_LINES ||--o{ FOO_COST_SHEET : "Fetching Item info"
 
-    OM_ORDER_HEADERS ||--o{ OM_ORDER_LINES : "contains"
-    OM_ORDER_HEADERS ||--o{ CUST_PAYMENT_HIST : "records payment"
+    OM_ORDER_HEADERS ||--o{ OM_ORDER_LINES : "seperate layer to store ordered items"
+    OM_ORDER_HEADERS ||--o{ CUST_PAYMENT_HIST : "record payments"
 
     CUST_PERSON_ACC ||--o{ CUST_ORDER_HIST : "maintains history"
     CUST_ORDER_HIST ||--o{ CUST_PAYMENT_HIST : "tracks payment"
