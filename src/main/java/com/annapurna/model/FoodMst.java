@@ -1,0 +1,34 @@
+package com.annapurna.model;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "FOO_FOOD_MST")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class FoodMst {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "item_id")
+    private Integer itemId;
+    
+    @Column(name = "item_code", unique = true, nullable = false, length = 20)
+    private String itemCode;
+    
+    @Column(name = "item_number", unique = true, nullable = false)
+    private Integer itemNumber;
+    
+    @Column(name = "item_description", nullable = false)
+    private String itemDescription;
+    
+    @Column(name = "creation_date")
+    private LocalDateTime creationDate = LocalDateTime.now();
+    
+    @Column(name = "in_use")
+    private Boolean inUse = true;
+}

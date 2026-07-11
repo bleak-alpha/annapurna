@@ -1,0 +1,77 @@
+spring:
+  application:
+    name: annapurna-backend
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/inacanteen
+    username: postgres
+    password: root
+    driver-class-name: org.postgresql.Driver
+    
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.metrics.SystemMetricsAutoConfiguration
+
+  cache:
+    cache-name:
+      - activeMenuCache
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: aniketmadzaware2025@gmail.com
+    password: qbfp jvlb vtca whxy
+
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+
+
+app:
+  cache:
+    expiry-hours: 6
+
+server:
+  port: 8080
+
+# COMPLETELY DISABLE ACTUATOR AND METRICS
+management:
+  endpoints:
+    enabled-by-default: false
+  metrics:
+    export:
+      enabled: false
+  endpoint:
+    health:
+      enabled: false
+
+logging:
+  level:
+    com.annapurna: INFO
+    org.springframework: WARN
+
+report:
+  email:
+    receiveremail: aniketzaware1122@gmail.com
+
+whatsapp:
+  access-token: EAANY2yUCS9kBRkGdQ1IE1Qa8LIddLtFHoEVXXZBTzCUKV8VoklcZCdWgUKifYwXP5Mku1uL4ZB8ZCgaInUA7TCp2D7kRPZBr9VCbGJqw2eJ8FbWtxCtaP4nVyZCDZAM5bB0L3JZC62g9MhVt3dtO5Y8ZArFzw2JnxEtscqHFPxhuGYpOjePPKxPCWHVHjFmWnBU5ojPhperIhOrk2LTfHZBoaeCBgwA59UevKMLeRNDx5OS1ZAoiWAZCZChf0CmoehkPOQMtJxs0vufrRRkwywziZAGBq2
+  phonenumber-id: 1182731761590420
+
+schdular:
+  report:
+    cron: 0 0/5 * * * *
+    active: true
+
+
