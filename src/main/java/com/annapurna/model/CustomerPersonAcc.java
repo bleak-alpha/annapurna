@@ -35,4 +35,7 @@ public class CustomerPersonAcc {
     
     @Column(name = "total_due", precision = 10, scale = 2)
     private BigDecimal totalDue = BigDecimal.ZERO;
+
+    @Column(name = "customer_email", nullable = false)
+    private String customerEmail;
 }

@@ -25,4 +25,11 @@ public interface CustomerPersonAccRepository extends JpaRepository<CustomerPerso
 
     @Query("SELECT com.annapurna.dto.Customer.CustomerDTO(c.customerNumber, c.name) FROM CustomerPersonAcc c")
     List<CustomerDTO> getAllCustData();
+
+    Optional<CustomerPersonAcc> findByPhoneAndCustomerEmail(String Phone, String customerEmail);
+
+
+    void deleteByCustomerNumberAndPhone(String customerNumber, String phone);
+
+
 }
