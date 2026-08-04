@@ -1,11 +1,14 @@
 package com.annapurna.controller;
 
+import com.annapurna.dto.Customer.CustomerDTO;
 import com.annapurna.dto.CustomerDuesResponse;
 import com.annapurna.model.CustomerPersonAcc;
 import com.annapurna.service.CustomerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,5 +38,13 @@ public class CustomerController {
     @GetMapping("/dues")
     public ResponseEntity<List<CustomerDuesResponse>> getCustomersWithDues() {
         return ResponseEntity.ok(customerService.getCustomersWithDues());
+    }
+
+
+//    Need to change used DTO
+    @GetMapping("/fetchallcustomers")
+    public ResponseEntity<List<CustomerDTO>> getallcustomer(){
+        return ResponseEntity.ok((List<CustomerDTO>) customerService.getallCustomerData());
+
     }
 }

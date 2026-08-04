@@ -48,4 +48,7 @@ public interface OrderLineRepository extends JpaRepository<OrderLine, Integer> {
     
     @Query("SELECT COUNT(*) FROM OrderLine ol WHERE ol.orderHeader.headerId = :headerId AND ol.isPaid = false")
     Long countUnpaidLinesByHeaderId(@Param("headerId") Integer headerId);
+
+    @Query("SELECT COALESCE(MAX(o.lineNumber), 0) FROM OrderLine o")
+    Integer findMaxLineNumber();
 }

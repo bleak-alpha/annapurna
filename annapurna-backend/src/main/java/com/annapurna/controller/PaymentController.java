@@ -18,7 +18,7 @@ public class PaymentController {
     
     private final PaymentService paymentService;
     
-    @PostMapping
+    @PostMapping("/pay")
     public ResponseEntity<PaymentResponse> recordPayment(@Valid @RequestBody PaymentRequest request) {
         PaymentResponse response = paymentService.recordPayment(request);
         return ResponseEntity.ok(response);

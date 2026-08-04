@@ -1,10 +1,6 @@
 # Java
-backend/target/
-backend/target/*.jar
-backend/target/*.war
-backend/target/*.ear
-backend/target/*.class
-
+annapurna-backend/target/*
+annapurna-backend/target
 # Node.js
 node_modules/
 npm-debug.log*

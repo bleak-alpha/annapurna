@@ -22,7 +22,7 @@ public class OrderLine {
     @JoinColumn(name = "header_id", nullable = false)
     private OrderHeader orderHeader;
     
-    @Column(name = "line_number", nullable = false)
+    @Column(name = "line_number")
     private Integer lineNumber;
     
     @Column(name = "creation_date")

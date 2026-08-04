@@ -6,6 +6,7 @@ import com.annapurna.exception.MenuItemNotFoundException;
 import com.annapurna.model.*;
 import com.annapurna.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Log4j2
 public class OrderService {
     
     private final OrderHeaderRepository orderHeaderRepository;
@@ -51,9 +53,12 @@ public class OrderService {
         
         // Save header first (generates order_number via trigger)
         orderHeader = orderHeaderRepository.save(orderHeader);
+
+        log.info("Data saved in header table ");
         
         List<OrderLine> orderLines = new ArrayList<>();
         BigDecimal totalOrderAmount = BigDecimal.ZERO;
+
         
         // Process order items
         for (OrderItemRequest itemRequest : request.getItems()) {
@@ -61,6 +66,8 @@ public class OrderService {
             
             CostSheet costSheet = costSheetRepository.findActiveCostForItem(foodItem.getItemId())
                 .orElseThrow(() -> new MenuItemNotFoundException("Active cost not found for item: " + foodItem.getItemCode()));
+
+            Integer linenumber= orderLineRepository.findMaxLineNumber()+1;
             
             OrderLine orderLine = new OrderLine();
             orderLine.setOrderHeader(orderHeader);
@@ -69,6 +76,7 @@ public class OrderService {
             orderLine.setCostPerItem(costSheet.getCost());
             orderLine.setIsPaid(Boolean.TRUE.equals(request.getIsPaidFull()));
             orderLine.calculateTotalCost();
+            orderLine.setLineNumber(linenumber);
             
             orderLines.add(orderLine);
             totalOrderAmount = totalOrderAmount.add(orderLine.getTotalCost());

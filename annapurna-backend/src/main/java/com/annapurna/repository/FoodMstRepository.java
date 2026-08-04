@@ -25,4 +25,9 @@ public interface FoodMstRepository extends JpaRepository<FoodMst, Integer> {
         ORDER BY f.itemNumber
     """)
     List<MenuItemResponse> getActiveMenuWithPrices();
+
+    Optional<FoodMst> findByitemDescription(String itemDescription);
+
+
+
 }

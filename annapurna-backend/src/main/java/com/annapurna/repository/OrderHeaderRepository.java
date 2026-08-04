@@ -32,4 +32,6 @@ public interface OrderHeaderRepository extends JpaRepository<OrderHeader, Intege
     
     @Query("SELECT oh FROM OrderHeader oh WHERE oh.isPaidFull = false AND oh.isDeferred = true ORDER BY oh.creationDate")
     List<OrderHeader> findDeferredOrders();
+
+
 }

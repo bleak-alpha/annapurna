@@ -1,11 +1,16 @@
 package com.annapurna.service;
 
 import com.annapurna.dto.*;
+import com.annapurna.dto.Customer.CustomerDTO;
 import com.annapurna.model.*;
 import com.annapurna.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -13,20 +18,27 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Log4j2
 public class CustomerService {
     
     private final CustomerPersonAccRepository customerRepository;
     private final CustomerOrderHistRepository orderHistRepository;
     
     public CustomerPersonAcc createCustomer(String name, String phone) {
+        log.info("Reuqest recived for the add new customer");
         String customerNumber = generateCustomerNumber();
-        
-        CustomerPersonAcc customer = new CustomerPersonAcc();
-        customer.setCustomerNumber(customerNumber);
-        customer.setName(name);
-        customer.setPhone(phone);
-        
-        return customerRepository.save(customer);
+
+        Optional<CustomerPersonAcc> data= findByPhone(phone);
+        if(data.isEmpty()) {
+            CustomerPersonAcc customer = new CustomerPersonAcc();
+            customer.setCustomerNumber(customerNumber);
+            customer.setName(name);
+            customer.setPhone(phone);
+           return customerRepository.save(customer);
+        } else {
+
+            return data.get();
+        }
     }
     
     @Transactional(readOnly = true)
@@ -73,5 +85,22 @@ public class CustomerService {
     private String generateCustomerNumber() {
         long count = customerRepository.count() + 1;
         return String.format("CUST%04d", count);
+    }
+
+
+    public List<CustomerDTO> getallCustomerData() {
+
+        List<CustomerPersonAcc> entity = customerRepository.findAll();
+
+        List<CustomerDTO> list = new ArrayList<>();
+
+        for (CustomerPersonAcc data : entity) {
+            list.add(new CustomerDTO(
+                    data.getCustomerNumber(),
+                    data.getName()
+            ));
+        }
+
+        return list;
     }
 }
