@@ -1,17 +1,17 @@
 services:
   database:
-    image: postgres:15
-    container_name: annapurna_postgres
+    image: gvenzl/oracle-xe:21-slim
+    container_name: annapurna_database
     environment:
       POSTGRES_DB: ${DB_NAME:-annapurna_db}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_USER: ${DB_USER:-apps}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-apps}
       POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - oracle_data:/opt/oracle/oradata
+      - ./annapurna_database/00-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT:-1521}:1521"
     networks:
       - annapurna-net
     restart: unless-stopped

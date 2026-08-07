@@ -23,60 +23,60 @@ CREATE SEQUENCE OM_ORDER_LINES_SEQ START WITH 1 INCREMENT BY 1 NOCYCLE CACHE 20;
 -- DEPENDS ON- 1: sequences, FOO module (FOO_FOOD_MST), CUST module (CUST_PERSON_ACC)
 --------------------------------------------------------------------------------
 -- OM_ORDER_HEADERS: Order Headers
-CREATE TABLE OM_ORDER_HEADERS (
-    header_id          NUMBER(10)     DEFAULT OM_ORDER_HEADERS_SEQ.NEXTVAL PRIMARY KEY,
-    order_number       NUMBER(18),
-    creation_date      TIMESTAMP      DEFAULT SYSTIMESTAMP NOT NULL,
-    who_gave_order     VARCHAR2(255),
-    when_ordered       TIMESTAMP      DEFAULT SYSTIMESTAMP,
-    is_paid_full       NUMBER(1)      DEFAULT 0,
-    is_deferred        NUMBER(1)      DEFAULT NULL,
-    is_known_customer  NUMBER(1)      DEFAULT 0,
-    customer_id        NUMBER(10),
-    total_due          NUMBER(10,2)   DEFAULT 0.00,
-    order_status       VARCHAR2(20)   DEFAULT 'PENDING',   -- NEW: PENDING/COMPLETED/CANCELLED
-    table_no           VARCHAR2(20),                       -- NEW: dine-in/parcel identifier
-    CONSTRAINT uq_order_number UNIQUE (order_number),
-    CONSTRAINT fk_order_header_customer FOREIGN KEY (customer_id) REFERENCES CUST_PERSON_ACC(customer_id),
-    CONSTRAINT chk_paid_full   CHECK (is_paid_full IN (0,1)),
-    CONSTRAINT chk_deferred    CHECK (is_deferred IN (0,1)),
-    CONSTRAINT chk_known_cust  CHECK (is_known_customer IN (0,1)),
-    CONSTRAINT chk_payment_deferred CHECK (
-        (is_paid_full = 1 AND is_deferred = 0) OR
-        (is_paid_full = 0 AND is_deferred = 1) OR
-        (is_paid_full IS NULL OR is_deferred IS NULL)
+CREATE TABLE OM_ORDER_HEADERS_TBL (
+    HEADER_ID          NUMBER(10)     DEFAULT OM_ORDER_HEADERS_SEQ.NEXTVAL PRIMARY KEY,
+    ORDER_NUMBER       NUMBER(18),
+    CREATION_DATE      TIMESTAMP      DEFAULT SYSTIMESTAMP NOT NULL,
+    WHO_GAVE_ORDER     VARCHAR2(255),
+    WHEN_ORDERED       TIMESTAMP      DEFAULT SYSTIMESTAMP,
+    IS_PAID_FULL       NUMBER(1)      DEFAULT 0,
+    IS_DEFERRED        NUMBER(1)      DEFAULT NULL,
+    IS_KNOWN_CUSTOMER  NUMBER(1)      DEFAULT 0,
+    CUSTOMER_ID        NUMBER(10),
+    TOTAL_DUE          NUMBER(10,2)   DEFAULT 0.00,
+    ORDER_STATUS       VARCHAR2(20)   DEFAULT 'PENDING',   -- NEW: PENDING/COMPLETED/CANCELLED
+    TABLE_NO           VARCHAR2(20),                       -- NEW: dine-in/parcel identifier
+    CONSTRAINT UQ_ORDER_NUMBER UNIQUE (ORDER_NUMBER),
+    CONSTRAINT FK_ORDER_HEADER_CUSTOMER FOREIGN KEY (CUSTOMER_ID) REFERENCES CUST_PERSON_ACC(CUSTOMER_ID),
+    CONSTRAINT CHK_PAID_FULL   CHECK (IS_PAID_FULL IN (0,1)),
+    CONSTRAINT CHK_DEFERRED    CHECK (IS_DEFERRED IN (0,1)),
+    CONSTRAINT CHK_KNOWN_CUST  CHECK (IS_KNOWN_CUSTOMER IN (0,1)),
+    CONSTRAINT CHK_PAYMENT_DEFERRED CHECK (
+        (IS_PAID_FULL = 1 AND IS_DEFERRED = 0) OR
+        (IS_PAID_FULL = 0 AND IS_DEFERRED = 1) OR
+        (IS_PAID_FULL IS NULL OR IS_DEFERRED IS NULL)
     ),
-    CONSTRAINT chk_walk_in_payment CHECK (
-        (customer_id IS NULL AND is_known_customer = 0 AND
-         (is_deferred IS NULL OR is_deferred = 0) AND is_paid_full = 1) OR
-        (customer_id IS NOT NULL)
+    CONSTRAINT CHK_WALK_IN_PAYMENT CHECK (
+        (CUSTOMER_ID IS NULL AND IS_KNOWN_CUSTOMER = 0 AND
+         (IS_DEFERRED IS NULL OR IS_DEFERRED = 0) AND IS_PAID_FULL = 1) OR
+        (CUSTOMER_ID IS NOT NULL)
     )
 );
 
-COMMENT ON COLUMN OM_ORDER_HEADERS.order_number IS 'Format: YYMMDD + 3-digit sequence (e.g., 251006001)';
+COMMENT ON COLUMN OM_ORDER_HEADERS_TBL.ORDER_NUMBER IS 'Format: YYMMDD + 3-digit sequence (e.g., 251006001)';
 
--- OM_ORDER_LINES: Order Line Items
-CREATE TABLE OM_ORDER_LINES (
-    line_id        NUMBER(10)    DEFAULT OM_ORDER_LINES_SEQ.NEXTVAL PRIMARY KEY,
-    header_id      NUMBER(10)    NOT NULL,
-    line_number    NUMBER(10)    NOT NULL,
-    creation_date  TIMESTAMP     DEFAULT SYSTIMESTAMP NOT NULL,
-    item_id        NUMBER(10)    NOT NULL,
-    quantity       NUMBER(10)    NOT NULL,
-    cost_per_item  NUMBER(10,2)  NOT NULL,
-    total_cost     NUMBER(10,2)  DEFAULT 0.00,
-    is_paid        NUMBER(1)     DEFAULT 0,
-    is_served      NUMBER(1)     DEFAULT 0,
-    served_at      TIMESTAMP,
-    served_by      VARCHAR2(255),
-    kitchen_note   VARCHAR2(500),                          -- NEW: special instructions
-    CONSTRAINT fk_order_line_header FOREIGN KEY (header_id) REFERENCES OM_ORDER_HEADERS(header_id) ON DELETE CASCADE,
-    CONSTRAINT fk_order_line_item   FOREIGN KEY (item_id) REFERENCES FOO_FOOD_MST(item_id),
-    CONSTRAINT uq_header_line       UNIQUE (header_id, line_number),
-    CONSTRAINT chk_line_qty         CHECK (quantity > 0),
-    CONSTRAINT chk_line_cost        CHECK (cost_per_item > 0),
-    CONSTRAINT chk_line_paid        CHECK (is_paid IN (0,1)),
-    CONSTRAINT chk_line_served      CHECK (is_served IN (0,1))
+-- OM_ORDER_LINES_TBL: Order Line Items
+CREATE TABLE OM_ORDER_LINES_TBL (
+    LINE_ID        NUMBER(10)    DEFAULT OM_ORDER_LINES_SEQ.NEXTVAL PRIMARY KEY,
+    HEADER_ID      NUMBER(10)    NOT NULL,
+    LINE_NUMBER    NUMBER(10)    NOT NULL,
+    CREATION_DATE  TIMESTAMP     DEFAULT SYSTIMESTAMP NOT NULL,
+    ITEM_ID        NUMBER(10)    NOT NULL,
+    QUANTITY       NUMBER(10)    NOT NULL,
+    COST_PER_ITEM  NUMBER(10,2)  NOT NULL,
+    TOTAL_COST     NUMBER(10,2)  DEFAULT 0.00,
+    IS_PAID        NUMBER(1)     DEFAULT 0,
+    IS_SERVED      NUMBER(1)     DEFAULT 0,
+    SERVED_AT      TIMESTAMP,
+    SERVED_BY      VARCHAR2(255),
+    KITCHEN_NOTE   VARCHAR2(500),                          -- NEW: special instructions
+    CONSTRAINT FK_ORDER_LINE_HEADER FOREIGN KEY (HEADER_ID) REFERENCES OM_ORDER_HEADERS_TBL(HEADER_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_ORDER_LINE_ITEM   FOREIGN KEY (ITEM_ID) REFERENCES FOO_FOOD_MST(ITEM_ID),
+    CONSTRAINT UQ_HEADER_LINE       UNIQUE (HEADER_ID, LINE_NUMBER),
+    CONSTRAINT CHK_LINE_QTY         CHECK (QUANTITY > 0),
+    CONSTRAINT CHK_LINE_COST        CHECK (COST_PER_ITEM > 0),
+    CONSTRAINT CHK_LINE_PAID        CHECK (IS_PAID IN (0,1)),
+    CONSTRAINT CHK_LINE_SERVED      CHECK (IS_SERVED IN (0,1))
 );
 --------------------------------------------------------------------------------
 -- 3: triggers
@@ -85,72 +85,89 @@ CREATE TABLE OM_ORDER_LINES (
 
 -- Generate order_number (YYMMDD + 3-digit daily sequence)
 CREATE OR REPLACE TRIGGER OM_GENERATE_ORDER_NUMBER_TRG
-    BEFORE INSERT ON OM_ORDER_HEADERS
+    BEFORE INSERT ON OM_ORDER_HEADERS_TBL
     FOR EACH ROW
 DECLARE
-    v_date_prefix   VARCHAR2(6);
-    v_sequence_num  NUMBER;
-    v_new_order_no  NUMBER(18);
+    V_DATE_PREFIX   VARCHAR2(6);
+    V_SEQUENCE_NUM  NUMBER;
+    V_NEW_ORDER_NO  NUMBER(18);
 BEGIN
-    v_date_prefix := TO_CHAR(SYSTIMESTAMP, 'YYMMDD');
+    V_DATE_PREFIX := TO_CHAR(SYSTIMESTAMP, 'YYMMDD');
 
-    SELECT NVL(MAX(TO_NUMBER(SUBSTR(TO_CHAR(order_number), 7))), 0) + 1
-      INTO v_sequence_num
-      FROM OM_ORDER_HEADERS
-     WHERE TO_CHAR(creation_date, 'YYMMDD') = v_date_prefix;
+    SELECT NVL(MAX(TO_NUMBER(SUBSTR(TO_CHAR(ORDER_NUMBER), 7))), 0) + 1
+      INTO V_SEQUENCE_NUM
+      FROM OM_ORDER_HEADERS_TBL
+     WHERE TO_CHAR(CREATION_DATE, 'YYMMDD') = V_DATE_PREFIX;
 
-    IF v_sequence_num > 999 THEN
-        RAISE_APPLICATION_ERROR(-20001, 'Daily order limit (999) exceeded for date ' || v_date_prefix);
+    IF V_SEQUENCE_NUM > 999 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Daily order limit (999) exceeded for date ' || V_DATE_PREFIX);
     END IF;
 
-    v_new_order_no := TO_NUMBER(v_date_prefix || LPAD(v_sequence_num, 3, '0'));
-    :NEW.order_number := v_new_order_no;
+    V_NEW_ORDER_NO := TO_NUMBER(V_DATE_PREFIX || LPAD(V_SEQUENCE_NUM, 3, '0'));
+    :NEW.ORDER_NUMBER := V_NEW_ORDER_NO;
 END;
 /
 
 -- Auto-increment line_number per header_id
 CREATE OR REPLACE TRIGGER OM_GENERATE_LINE_NUMBER_TRG
-    BEFORE INSERT ON OM_ORDER_LINES
+    BEFORE INSERT ON OM_ORDER_LINES_TBL
     FOR EACH ROW
-    WHEN (NEW.line_number IS NULL)
+    WHEN (NEW.LINE_NUMBER IS NULL)
 DECLARE
-    v_next_line NUMBER;
+    V_NEXT_LINE NUMBER;
 BEGIN
-    SELECT NVL(MAX(line_number), 0) + 1
-      INTO v_next_line
-      FROM OM_ORDER_LINES
-     WHERE header_id = :NEW.header_id;
+    SELECT NVL(MAX(LINE_NUMBER), 0) + 1
+      INTO V_NEXT_LINE
+      FROM OM_ORDER_LINES_TBL
+     WHERE HEADER_ID = :NEW.HEADER_ID;
 
-    :NEW.line_number := v_next_line;
+    :NEW.LINE_NUMBER := V_NEXT_LINE;
 END;
 /
 
--- Calculate line total cost
+-- Calculate line total cost --can be disabled if handled at java level
 CREATE OR REPLACE TRIGGER OM_CALCULATE_LINE_TOTAL_TRG
-    BEFORE INSERT OR UPDATE ON OM_ORDER_LINES
+    BEFORE INSERT OR UPDATE ON OM_ORDER_LINES_TBL
     FOR EACH ROW
 BEGIN
-    :NEW.total_cost := :NEW.quantity * :NEW.cost_per_item;
+    :NEW.TOTAL_COST := :NEW.QUANTITY * :NEW.COST_PER_ITEM;
 END;
 /
 
 -- Validate order can only be marked fully paid if all lines are paid
 CREATE OR REPLACE TRIGGER OM_VALIDATE_ORDER_PAYMENT_TRG
-    BEFORE UPDATE ON OM_ORDER_HEADERS
+    BEFORE UPDATE ON OM_ORDER_HEADERS_TBL
     FOR EACH ROW
-    WHEN (NEW.is_paid_full = 1 AND OLD.is_paid_full = 0)
+    WHEN (NEW.IS_PAID_FULL = 1 AND OLD.IS_PAID_FULL = 0)
 DECLARE
-    v_unpaid_lines NUMBER;
+    V_UNPAID_LINES NUMBER;
 BEGIN
     SELECT COUNT(*)
-      INTO v_unpaid_lines
-      FROM OM_ORDER_LINES
-     WHERE header_id = :NEW.header_id AND is_paid = 0;
+      INTO V_UNPAID_LINES
+      FROM OM_ORDER_LINES_TBL
+     WHERE HEADER_ID = :NEW.HEADER_ID AND IS_PAID = 0;
 
-    IF v_unpaid_lines > 0 THEN
+    IF V_UNPAID_LINES > 0 THEN
         RAISE_APPLICATION_ERROR(-20002,
-            'Cannot mark order as fully paid: ' || v_unpaid_lines || ' unpaid line(s) exist');
+            'Cannot mark order as fully paid: ' || V_UNPAID_LINES || ' unpaid line(s) exist');
     END IF;
+END;
+/
+
+CREATE OR REPLACE TRIGGER OM_PREVENT_MANUAL_HEADER_ID_TRG
+    BEFORE INSERT ON OM_ORDER_HEADERS_TBL
+    FOR EACH ROW
+BEGIN
+    IF :NEW.HEADER_ID IS NOT NULL AND :NEW.HEADER_ID != OM_ORDER_HEADERS_SEQ.CURRVAL THEN
+        RAISE_APPLICATION_ERROR(-20003, "Cannot manually set header_id, It must be auto-generated.");
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLCODE = -8002 THEN --CURRVAL NOT DEFINED IN SESSION
+            NULL;
+        ELSE
+            RAISE;
+        END IF;
 END;
 /
 --------------------------------------------------------------------------------
@@ -159,52 +176,52 @@ END;
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE VIEW OM_PENDING_ORDERS_V AS
-SELECT oh.header_id, oh.order_number, oh.creation_date, oh.table_no,
-       NVL(c.name, 'Walk-in Customer') AS customer_name,
-       fm.item_code, fm.item_number, fm.item_description,
-       ol.line_number, ol.quantity, ol.line_id, ol.total_cost,
-       oh.is_paid_full, oh.is_deferred
-  FROM OM_ORDER_LINES ol, OM_ORDER_HEADERS oh, FOO_FOOD_MST fm, CUST_PERSON_ACC c
-  WHERE ol.header_id = oh.header_id
-   AND ol.item_id = fm.item_id
-   AND oh.customer_id = c.customer_id(+)
-   AND ol.is_served = 0
- ORDER BY oh.creation_date, ol.line_number;
+SELECT OH.HEADER_ID, OH.ORDER_NUMBER, OH.CREATION_DATE, OH.TABLE_NO,
+       NVL(C.NAME, 'Walk-in Customer') AS CUSTOMER_NAME,
+       FM.ITEM_CODE, FM.ITEM_NUMBER, FM.ITEM_DESCRIPTION,
+       OL.LINE_NUMBER, OL.QUANTITY, OL.LINE_ID, OL.TOTAL_COST,
+       OH.IS_PAID_FULL, OH.IS_DEFERRED
+  FROM OM_ORDER_LINES_TBL OL, OM_ORDER_HEADERS_TBL OH, FOO_FOOD_MST FM, CUST_PERSON_ACC C
+  WHERE OL.HEADER_ID = OH.HEADER_ID
+   AND OL.ITEM_ID = FM.ITEM_ID
+   AND OH.CUSTOMER_ID = C.CUSTOMER_ID(+)
+   AND OL.IS_SERVED = 0
+ ORDER BY OH.CREATION_DATE, OL.LINE_NUMBER;
 
 CREATE OR REPLACE VIEW CUST_DEFERRED_ORDERS_V AS
-SELECT oh.header_id, oh.order_number, oh.creation_date, c.name AS customer_name,
-       oh.total_due
-  FROM OM_ORDER_HEADERS oh, CUST_PERSON_ACC c 
-  WHERE oh.customer_id = c.customer_id
-   AND oh.is_paid_full = 0 AND oh.is_deferred = 1
- ORDER BY oh.creation_date;
+SELECT OH.HEADER_ID, OH.ORDER_NUMBER, OH.CREATION_DATE, C.NAME AS CUSTOMER_NAME,
+       OH.TOTAL_DUE
+  FROM OM_ORDER_HEADERS_TBL OH, CUST_PERSON_ACC C 
+  WHERE OH.CUSTOMER_ID = C.CUSTOMER_ID
+   AND OH.IS_PAID_FULL = 0 AND OH.IS_DEFERRED = 1
+ ORDER BY OH.CREATION_DATE;
 
 CREATE OR REPLACE VIEW OM_TODAY_ORDER_SUMMARY_V AS
-SELECT COUNT(*)                                   AS today_orders,
-       NVL(SUM(CASE WHEN is_paid_full = 1 THEN total_due END), 0) AS today_revenue,
-       SUM(CASE WHEN is_paid_full = 0 THEN 1 ELSE 0 END)          AS unpaid_orders
-  FROM OM_ORDER_HEADERS
- WHERE TRUNC(creation_date) = TRUNC(SYSDATE);
+SELECT COUNT(*)                                   AS TODAY_ORDERS,
+       NVL(SUM(CASE WHEN IS_PAID_FULL = 1 THEN TOTAL_DUE END), 0) AS TODAY_REVENUE,
+       SUM(CASE WHEN IS_PAID_FULL = 0 THEN 1 ELSE 0 END)          AS UNPAID_ORDERS
+  FROM OM_ORDER_HEADERS_TBL
+ WHERE TRUNC(CREATION_DATE) = TRUNC(SYSDATE);
 --------------------------------------------------------------------------------
 -- 5: sample data
 -- DEPENDS ON- 2:tables, 3: triggers, FOO + CUST sample data loaded
 --------------------------------------------------------------------------------
 
 -- Walk-in, fully paid order (no customer)
-INSERT INTO OM_ORDER_HEADERS (who_gave_order, is_paid_full, is_deferred, is_known_customer, table_no, order_status)
+INSERT INTO OM_ORDER_HEADERS_TBL (WHO_GAVE_ORDER, IS_PAID_FULL, IS_DEFERRED, IS_KNOWN_CUSTOMER, TABLE_NO, ORDER_STATUS)
 VALUES ('Cashier1', 1, 0, 0, 'Parcel', 'COMPLETED');
 
-INSERT INTO OM_ORDER_LINES (header_id, item_id, quantity, cost_per_item, is_paid, is_served)
-SELECT (SELECT MAX(header_id) FROM OM_ORDER_HEADERS), item_id, 2, 40.00, 1, 1
-  FROM FOO_FOOD_MST WHERE item_code = 'B02';
+INSERT INTO OM_ORDER_LINES_TBL (HEADER_ID, ITEM_ID, QUANTITY, COST_PER_ITEM, IS_PAID, IS_SERVED)
+SELECT (SELECT MAX(HEADER_ID) FROM OM_ORDER_HEADERS_TBL), ITEM_ID, 2, 40.00, 1, 1
+  FROM FOO_FOOD_MST WHERE ITEM_CODE = 'B02';
 
 -- Known customer, deferred (unpaid) order
-INSERT INTO OM_ORDER_HEADERS (who_gave_order, is_paid_full, is_deferred, is_known_customer, customer_id, table_no, order_status)
-SELECT 'Cashier2', 0, 1, 1, customer_id, 'Table 4', 'PENDING'
-  FROM CUST_PERSON_ACC WHERE customer_number = 'CUST001';
+INSERT INTO OM_ORDER_HEADERS_TBL (WHO_GAVE_ORDER, IS_PAID_FULL, IS_DEFERRED, IS_KNOWN_CUSTOMER, CUSTOMER_ID, TABLE_NO, ORDER_STATUS)
+SELECT 'Cashier2', 0, 1, 1, CUSTOMER_ID, 'Table 4', 'PENDING'
+  FROM CUST_PERSON_ACC WHERE CUSTOMER_NUMBER = 'CUST001';
 
-INSERT INTO OM_ORDER_LINES (header_id, item_id, quantity, cost_per_item, is_paid, is_served)
-SELECT (SELECT MAX(header_id) FROM OM_ORDER_HEADERS), item_id, 1, 180.00, 0, 0
-  FROM FOO_FOOD_MST WHERE item_code = 'L05';
+INSERT INTO OM_ORDER_LINES_TBL (HEADER_ID, ITEM_ID, QUANTITY, COST_PER_ITEM, IS_PAID, IS_SERVED)
+SELECT (SELECT MAX(HEADER_ID) FROM OM_ORDER_HEADERS_TBL), ITEM_ID, 1, 180.00, 0, 0
+  FROM FOO_FOOD_MST WHERE ITEM_CODE = 'L05';
 
 COMMIT;

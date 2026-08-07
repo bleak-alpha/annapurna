@@ -14,7 +14,7 @@ CREATE SEQUENCE CUST_PERSON_ACC_SEQ START WITH 1 INCREMENT BY 1 NOCYCLE CACHE 20
 -- DEPENDS ON- 1: sequences
 --------------------------------------------------------------------------------
 -- CUST_PERSON_ACC: Customer Master
-CREATE TABLE CUST_PERSON_ACC (
+CREATE TABLE CUST_PERSON_ACC_TBL (
     customer_id      NUMBER(10)     DEFAULT CUST_PERSON_ACC_SEQ.NEXTVAL PRIMARY KEY,
     customer_number  VARCHAR2(50)   NOT NULL,
     name             VARCHAR2(255)  NOT NULL,
@@ -31,31 +31,52 @@ CREATE TABLE CUST_PERSON_ACC (
     CONSTRAINT uq_customer_number  UNIQUE (customer_number),
     CONSTRAINT chk_customer_active CHECK (is_active IN (0,1))
 );
+
 --------------------------------------------------------------------------------
--- 3: views
+-- 3: triggers
+-- DEPENDS ON- 2: tables
+--------------------------------------------------------------------------------
+CREATE OR REPLACE TRIGGER CUST_PREVENT_MANUAL_CUSTOMER_ID_TRG
+    BEFORE INSERT ON CUST_PERSON_ACC_TBL
+    FOR EACH ROW
+BEGIN
+	IF :NEW.CUSTOMER_ID IS NULL AND :NEW.CUSTOMER_ID != CUST_PERSON_ACC_SEQ.CURRVAL THEN
+		RAISE_APPLICATION_ERROR(-20003, 'Cannot manually set customer_id. It must be automatically generated.');
+	END IF;
+EXCEPTION
+	WHEN OTHERS THEN
+	IF SQLCODE = -8002 THEN --CURRVAL NOT DEFINED IN SESSION
+		NULL;
+	ELSE
+		RAISE;
+	END IF;
+END;
+/
+--------------------------------------------------------------------------------
+-- 4: views
 -- DEPENDS ON- 2: tables
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE VIEW CUST_CUSTOMER_DUES_V AS
 SELECT customer_id, customer_number, name, phone, total_due
-  FROM CUST_PERSON_ACC
+  FROM CUST_PERSON_ACC_TBL
  WHERE is_active = 1 AND total_due > 0
  ORDER BY total_due DESC;
 
 CREATE OR REPLACE VIEW CUST_ACTIVE_CUSTOMERS_V AS
 SELECT customer_id, customer_number, name, phone, email
-  FROM CUST_PERSON_ACC
+  FROM CUST_PERSON_ACC_TBL
  WHERE is_active = 1
  ORDER BY name;
 
 
 --------------------------------------------------------------------------------
--- 4: sample data
+-- 5: sample data
 -- DEPENDS ON- 2: tables
 --------------------------------------------------------------------------------
 
-INSERT INTO CUST_PERSON_ACC (customer_number, name, phone) VALUES ('CUST001', 'Rajesh Kumar', '9876543210');
-INSERT INTO CUST_PERSON_ACC (customer_number, name, phone) VALUES ('CUST002', 'Priya Sharma', '9876543211');
-INSERT INTO CUST_PERSON_ACC (customer_number, name, phone) VALUES ('CUST003', 'Amit Singh', '9876543212');
+INSERT INTO CUST_PERSON_ACC_TBL (customer_number, name, phone) VALUES ('CUST001', 'Rajesh Kumar', '9876543210');
+INSERT INTO CUST_PERSON_ACC_TBL (customer_number, name, phone) VALUES ('CUST002', 'Priya Sharma', '9876543211');
+INSERT INTO CUST_PERSON_ACC_TBL (customer_number, name, phone) VALUES ('CUST003', 'Amit Singh', '9876543212');
 
 COMMIT;
