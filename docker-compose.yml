@@ -1,49 +1,124 @@
 services:
+  # ---------------------------------------------------------------------------
+  # Oracle Database XE 21c
+  #
+  # Uses gvenzl/oracle-xe (Docker Hub) rather than Oracle's own registry:
+  # no docker login, no licence click-through, and ARM64 builds are available.
+  #
+  # APP_USER / APP_USER_PASSWORD make the image create the application schema
+  # and grant it on first boot, so no manual CREATE USER step is needed.
+  # ---------------------------------------------------------------------------
   database:
-    image: gvenzl/oracle-xe:21-slim
-    container_name: annapurna_database
+    image: ${ORACLE_IMAGE:-gvenzl/oracle-xe:21-slim}
+    container_name: annapurna_oracle
     environment:
-      POSTGRES_DB: ${DB_NAME:-annapurna_db}
-      POSTGRES_USER: ${DB_USER:-apps}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-apps}
-      POSTGRES_HOST_AUTH_METHOD: trust
+      ORACLE_PASSWORD: ${ORACLE_SYS_PASSWORD:?ORACLE_SYS_PASSWORD is required}
+      APP_USER: ${DB_USER:-ANNAPURNA}
+      APP_USER_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      TZ: ${TZ:-Asia/Kolkata}
+    ports:
+      -"${DB_PORT:-1521}:1521"
     volumes:
-      - oracle_data:/opt/oracle/oradata
-      - ./annapurna_database/00-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    ports:
-      - "${DB_PORT:-1521}:1521"
+      -oracle_data:/opt/oracle/oradata
     networks:
-      - annapurna-net
+      -annapurna-net
     restart: unless-stopped
+    shm_size: 1gb
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-annapurna_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+      # Ships with the image. Reports listener + PDB state, which is what
+      # "ready for connections" actually means here.
+      test: ["CMD", "healthcheck.sh"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 180s
 
-  backend:
-    build:
-      context: ./annapurna-backend
-      dockerfile: dockerfile
-    container_name: annapurna_backend
-    environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
-      DB_NAME: ${DB_NAME:-annapurna_db}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      JAVA_OPTS: "-Xms512m -Xmx1024m"
-    ports:
-      - "${BACKEND_PORT:-8080}:8080"
+  # ---------------------------------------------------------------------------
+  # Schema installer. Runs 00-init.sql once, then exits.
+  #
+  # Deliberately NOT done via the image's /container-entrypoint-initdb.d mount:
+  # that only fires when the data volume is empty, so a rebuilt stack on an
+  # existing volume would silently start with no schema. A one-shot service is
+  # explicit and idempotent, and its exit code gates the backend.
+  # ---------------------------------------------------------------------------
+  db-init:
+    image: ${ORACLE_IMAGE:-gvenzl/oracle-xe:21-slim}
+    container_name: annapurna_db_init
     depends_on:
       database:
         condition: service_healthy
+    environment:
+      APP_USER: ${DB_USER:-ANNAPURNA}
+      APP_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_SERVICE: ${DB_SERVICE:-XEPDB1}
+    volumes:
+      -./annapurna-database:/sql:ro
     networks:
-      - annapurna-net
+      -annapurna-net
+    working_dir: /sql
+    restart: "no"
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      -|
+        set -e
+
+        echo "Checking whether the schema is already installed..."
+        INSTALLED=$$(sqlplus -S "$${APP_USER}/$${APP_PASSWORD}@//database:1521/$${DB_SERVICE}" <<-'EOSQL'
+          SET HEADING OFF FEEDBACK OFF PAGESIZE 0
+          SELECT COUNT(*) FROM user_tables WHERE table_name = 'INIT_HEALTH_STATUS_TBL';
+          EXIT
+        EOSQL
+        )
+
+        if [ "$$(echo $$INSTALLED | tr -d '[:space:]')" = "1" ]; then
+          echo "Schema already present. Skipping install."
+          exit 0
+        fi
+
+        echo "Running 00-init.sql..."
+        sqlplus -S "$${APP_USER}/$${APP_PASSWORD}@//database:1521/$${DB_SERVICE}" @00-init.sql
+
+  # ---------------------------------------------------------------------------
+  # Spring Boot backend
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./annapurna-backend
+      dockerfile: Dockerfile
+    container_name: annapurna_backend
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@//database:1521/${DB_SERVICE:-XEPDB1}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-ANNAPURNA}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: oracle.jdbc.OracleDriver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.OracleDialect
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN}
+      WHATSAPP_PHONENUMBER_ID: ${WHATSAPP_PHONENUMBER_ID}
+      JAVA_OPTS: ${JAVA_OPTS:--Xms512m -Xmx1024m}
+      TZ: ${TZ:-Asia/Kolkata}
+    ports:
+      -"${BACKEND_PORT:-8080}:8080"
+    volumes:
+      -./logs/backend:/app/logs
+    networks:
+      -annapurna-net
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
 
 volumes:
-  postgres_data:
+  oracle_data:
     driver: local
 
 networks:

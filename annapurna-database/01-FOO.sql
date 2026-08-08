@@ -1,6 +1,13 @@
 --------------------------------------------------------------------------------
 -- ANNAPURNA CANTEEN DB - FOO MODULE (Menu / Food Master)
--- Run order: 01_foo -> 02_cust -> 03_om -> 04_billing -> 05_audit -> 06_procedures
+-- Run order: 01-FOO -> 02-CUST -> 03-OM -> 04-BILL -> 05-AUDIT -> 06-RPT
+--
+-- NAMING CONVENTION: <MODULE>_<NAME>_<TYPE>
+--   TBL = table, SEQ = sequence, TRG = trigger, V = view,
+--   PRC = procedure, FUNC = function, IDX = index
+--
+-- SQL STANDARD: joins expressed in the WHERE clause (Oracle legacy style).
+--               ANSI JOIN syntax is not used anywhere in this schema.
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
@@ -15,181 +22,226 @@ CREATE SEQUENCE FOO_COST_SHEET_SEQ START WITH 1 INCREMENT BY 1 NOCYCLE CACHE 20;
 -- DEPENDS ON- 1: Sequences
 --------------------------------------------------------------------------------
 
--- FOO_FOOD_MST: Menu Items Master
+-- FOO_FOOD_MST_TBL: Menu Items Master
 CREATE TABLE FOO_FOOD_MST_TBL (
-    ITEM_ID           NUMBER(10)      DEFAULT FOO_FOOD_MST_SEQ.NEXTVAL PRIMARY KEY,
-    ITEM_CODE         VARCHAR2(20)    NOT NULL,
-    ITEM_NUMBER       NUMBER(4)       NOT NULL,
-    ITEM_DESCRIPTION  VARCHAR2(255)   NOT NULL,
-    CATEGORY_CODE     VARCHAR2(20),                     -- NEW: replaces magic-digit parsing of item_number
-    CREATION_DATE     TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
-    CREATED_BY        VARCHAR2(100)   DEFAULT 'SYSTEM',
-    UPDATED_DATE      TIMESTAMP,
-    UPDATED_BY        VARCHAR2(100),
-    IN_USE            NUMBER(1)       DEFAULT 1 NOT NULL,
-    VERSION_NO        NUMBER(10)      DEFAULT 0 NOT NULL,
-    CONSTRAINT UQ_FOOD_MST_CODE   UNIQUE (ITEM_CODE),
-    CONSTRAINT UQ_FOOD_MST_NUMBER UNIQUE (ITEM_NUMBER),
-    CONSTRAINT CHK_FOOD_IN_USE    CHECK (IN_USE IN (0,1)),
-    CONSTRAINT CHK_ITEM_NUMBER    CHECK (ITEM_NUMBER BETWEEN 1000 AND 5999)
+    item_id           NUMBER(10)      DEFAULT FOO_FOOD_MST_SEQ.NEXTVAL PRIMARY KEY,
+    item_code         VARCHAR2(20)    NOT NULL,
+    item_number       NUMBER(4)       NOT NULL,
+    item_description  VARCHAR2(255)   NOT NULL,
+    category_code     VARCHAR2(20),
+    creation_date     TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
+    created_by        VARCHAR2(100)   DEFAULT 'SYSTEM',
+    updated_date      TIMESTAMP,
+    updated_by        VARCHAR2(100),
+    in_use            NUMBER(1)       DEFAULT 1 NOT NULL,
+    version_no        NUMBER(10)      DEFAULT 0 NOT NULL,
+    CONSTRAINT uq_food_mst_code   UNIQUE (item_code),
+    CONSTRAINT uq_food_mst_number UNIQUE (item_number),
+    CONSTRAINT chk_food_in_use    CHECK (in_use IN (0,1)),
+    CONSTRAINT chk_item_number    CHECK (item_number BETWEEN 1000 AND 5999)
 );
 
-COMMENT ON COLUMN FOO_FOOD_MST_TBL.ITEM_NUMBER IS '4-digit code: 1st=category(1-5), 2nd=type(1-2), 3rd-4th=item(00-99)';
+COMMENT ON COLUMN FOO_FOOD_MST_TBL.item_number IS '4-digit code: 1st=category(1-5), 2nd=type(1-2), 3rd-4th=item(00-99)';
 
--- FOO_COST_SHEET: Item Pricing with History
+-- FOO_COST_SHEET_TBL: Item Pricing with History
 CREATE TABLE FOO_COST_SHEET_TBL (
-    COST_ID         NUMBER(10)    DEFAULT FOO_COST_SHEET_SEQ.NEXTVAL PRIMARY KEY,
-    ITEM_ID         NUMBER(10)    NOT NULL,
-    COST            NUMBER(10,2)  NOT NULL,
-    IS_ACTIVE       NUMBER(1)     DEFAULT 1 NOT NULL,
-    CREATION_DATE   TIMESTAMP     DEFAULT SYSTIMESTAMP NOT NULL,
-    INACTIVE_DATE   TIMESTAMP,
-    CREATED_BY      VARCHAR2(100) DEFAULT 'SYSTEM',
-    -- virtual column emulates PG's partial unique index (WHERE is_active = TRUE)
-    ACTIVE_ITEM_ID  NUMBER(10) GENERATED ALWAYS AS (CASE WHEN IS_ACTIVE = 1 THEN ITEM_ID END) VIRTUAL,
-    CONSTRAINT FK_COST_SHEET_ITEM FOREIGN KEY (ITEM_ID) REFERENCES FOO_FOOD_MST_TBL(ITEM_ID),
-    CONSTRAINT CHK_COST_POSITIVE  CHECK (COST > 0),
-    CONSTRAINT CHK_COST_ACTIVE    CHECK (IS_ACTIVE IN (0,1))
+    cost_id         NUMBER(10)    DEFAULT FOO_COST_SHEET_SEQ.NEXTVAL PRIMARY KEY,
+    item_id         NUMBER(10)    NOT NULL,
+    cost            NUMBER(10,2)  NOT NULL,
+    is_active       NUMBER(1)     DEFAULT 1 NOT NULL,
+    creation_date   TIMESTAMP     DEFAULT SYSTIMESTAMP NOT NULL,
+    inactive_date   TIMESTAMP,
+    created_by      VARCHAR2(100) DEFAULT 'SYSTEM',
+    updated_date    TIMESTAMP,
+    updated_by      VARCHAR2(100),
+    version_no      NUMBER(10)    DEFAULT 0 NOT NULL,
+    -- virtual column emulates a partial unique index (only one active cost per item)
+    active_item_id  NUMBER(10) GENERATED ALWAYS AS (CASE WHEN is_active = 1 THEN item_id END) VIRTUAL,
+    CONSTRAINT fk_cost_sheet_item FOREIGN KEY (item_id) REFERENCES FOO_FOOD_MST_TBL(item_id),
+    CONSTRAINT chk_cost_positive  CHECK (cost > 0),
+    CONSTRAINT chk_cost_active    CHECK (is_active IN (0,1))
 );
-
-CREATE UNIQUE INDEX FOO_UQ_ACTIVE_COST_PER_ITEM ON FOO_COST_SHEET_TBL (ACTIVE_ITEM_ID);
 
 
 --------------------------------------------------------------------------------
--- 3: Triggers
+-- 3: Indexes
 -- DEPENDS ON- 2: Tables
 --------------------------------------------------------------------------------
+CREATE UNIQUE INDEX FOO_ACTIVE_COST_PER_ITEM_IDX ON FOO_COST_SHEET_TBL (active_item_id);
+CREATE INDEX FOO_FOOD_MST_ITEM_CODE_IDX   ON FOO_FOOD_MST_TBL (item_code);
+CREATE INDEX FOO_FOOD_MST_ITEM_NUMBER_IDX ON FOO_FOOD_MST_TBL (item_number);
+CREATE INDEX FOO_FOOD_MST_IN_USE_IDX      ON FOO_FOOD_MST_TBL (in_use);
+CREATE INDEX FOO_FOOD_MST_CATEGORY_IDX    ON FOO_FOOD_MST_TBL (category_code);
+CREATE INDEX FOO_COST_SHEET_ITEM_IDX      ON FOO_COST_SHEET_TBL (item_id, is_active);
+
+
+--------------------------------------------------------------------------------
+-- 4: Triggers
+-- DEPENDS ON- 2: Tables, 1: Sequences
+--------------------------------------------------------------------------------
+
+-- Prevent manual item_id insertion (sequence-only)
+CREATE OR REPLACE TRIGGER FOO_PREVENT_MANUAL_ITEM_ID_TRG
+    BEFORE INSERT ON FOO_FOOD_MST_TBL
+    FOR EACH ROW
+DECLARE
+    v_currval NUMBER;
+BEGIN
+    IF :NEW.item_id IS NOT NULL THEN
+        BEGIN
+            v_currval := FOO_FOOD_MST_SEQ.CURRVAL;
+        EXCEPTION
+            WHEN OTHERS THEN
+                IF SQLCODE = -8002 THEN   -- CURRVAL not yet defined in this session
+                    RETURN;
+                END IF;
+                RAISE;
+        END;
+
+        IF :NEW.item_id != v_currval THEN
+            RAISE_APPLICATION_ERROR(-20101,
+                'Cannot manually set item_id. It must be generated by FOO_FOOD_MST_SEQ.');
+        END IF;
+    END IF;
+END;
+/
+
+-- Prevent manual cost_id insertion (sequence-only)
+CREATE OR REPLACE TRIGGER FOO_PREVENT_MANUAL_COST_ID_TRG
+    BEFORE INSERT ON FOO_COST_SHEET_TBL
+    FOR EACH ROW
+DECLARE
+    v_currval NUMBER;
+BEGIN
+    IF :NEW.cost_id IS NOT NULL THEN
+        BEGIN
+            v_currval := FOO_COST_SHEET_SEQ.CURRVAL;
+        EXCEPTION
+            WHEN OTHERS THEN
+                IF SQLCODE = -8002 THEN
+                    RETURN;
+                END IF;
+                RAISE;
+        END;
+
+        IF :NEW.cost_id != v_currval THEN
+            RAISE_APPLICATION_ERROR(-20102,
+                'Cannot manually set cost_id. It must be generated by FOO_COST_SHEET_SEQ.');
+        END IF;
+    END IF;
+END;
+/
 
 -- Auto-deactivate old cost sheets when a new active one is inserted/updated
 CREATE OR REPLACE TRIGGER FOO_DEACTIVATE_OLD_COST_TRG
     BEFORE INSERT OR UPDATE ON FOO_COST_SHEET_TBL
     FOR EACH ROW
-    WHEN (NEW.IS_ACTIVE = 1)
+    WHEN (NEW.is_active = 1)
 BEGIN
     UPDATE FOO_COST_SHEET_TBL
-       SET IS_ACTIVE = 0,
-           INACTIVE_DATE = SYSTIMESTAMP
-     WHERE ITEM_ID = :NEW.ITEM_ID
-       AND IS_ACTIVE = 1
-       AND COST_ID != NVL(:NEW.COST_ID, -1);
+       SET is_active     = 0,
+           inactive_date = SYSTIMESTAMP,
+           updated_date  = SYSTIMESTAMP
+     WHERE item_id = :NEW.item_id
+       AND is_active = 1
+       AND cost_id != NVL(:NEW.cost_id, -1);
 END;
 /
 
-CREATE OR REPLACE TRIGGER FOO_PREVENT_MANUAL_ITEM_ID_TRG
-    BEFORE INSERT ON FOO_FOOD_MST_TBL
+-- Maintain audit columns on update
+CREATE OR REPLACE TRIGGER FOO_FOOD_MST_AUDIT_TRG
+    BEFORE UPDATE ON FOO_FOOD_MST_TBL
     FOR EACH ROW
 BEGIN
-    IF :NEW.ITEM_ID IS NOT NULL AND :NEW.ITEM_ID != FOO_FOOD_MST_SEQ.CURRVAL THEN
-        RAISE_APPLICATION_ERROR(-20003, 'Cannot manually set item_id. It must be auto-generated.');
-    END IF;
-EXCEPTION
-    WHEN OTHERS THEN
-        IF SQLCODE = -8002 THEN --CURRVAL NOT DEFINED IN SESSION
-            NULL;
-        ELSE
-            RAISE;
-        END IF;
+    :NEW.updated_date := SYSTIMESTAMP;
+    :NEW.version_no   := NVL(:OLD.version_no, 0) + 1;
 END;
 /
 
-CREATE OR REPLACE TRIGGER FOO_PREVENT_MANUAL_COST_ID_TRG
-    BEFORE INSERT ON FOO_COST_SHEET_TBL
-    FOR EACH ROW
-BEGIN
-    IF :NEW.COST_ID IS NOT NULL AND :NEW.COST_ID != FOO_COST_SHEET_SEQ.CURRVAL THEN
-        RAISE_APPLICATION_ERROR(-20003, "CANNOT MANUALLY SET COST_ID. IT MUST BE AUTO-GENERATED.");
-    END IF; 
-EXCEPTION
-    WHEN OTHERS THEN
-        IF SQLCODE = -8002 THEN --CURRVAL NOT DEFINED IN SESSION
-            NULL;
-        ELSE
-            RAISE;
-        END IF;
-END;
-/
 
 --------------------------------------------------------------------------------
--- 4: Views
+-- 5: Views
 -- DEPENDS ON- 2: Tables
+-- NOTE: joins are written in the WHERE clause, not ANSI JOIN syntax.
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE VIEW FOO_ACTIVE_MENU_V AS
-SELECT  F.ITEM_ID,  F.ITEM_CODE, 
-        F.ITEM_NUMBER, F.ITEM_DESCRIPTION, F.CATEGORY_CODE, C.COST
-FROM FOO_FOOD_MST_TBL F, FOO_COST_SHEET_TBL C 
-WHERE F.ITEM_ID = C.ITEM_ID 
-    AND C.IS_ACTIVE = 1
-    AND F.IN_USE = 1;
+SELECT f.item_id, f.item_code, f.item_number, f.item_description,
+       f.category_code, c.cost
+  FROM FOO_FOOD_MST_TBL f, FOO_COST_SHEET_TBL c
+ WHERE f.item_id = c.item_id
+   AND c.is_active = 1
+   AND f.in_use = 1;
 
 CREATE OR REPLACE VIEW FOO_COST_HISTORY_V AS
-SELECT  C.COST_ID, F.ITEM_CODE, F.ITEM_DESCRIPTION, 
-        C.COST, C.IS_ACTIVE, C.CREATION_DATE, C.INACTIVE_DATE
-FROM FOO_COST_SHEET_TBL C, FOO_FOOD_MST_TBL F
-WHERE F.ITEM_ID = C.ITEM_ID
-ORDER BY F.ITEM_CODE, C.CREATION_DATE DESC;
+SELECT c.cost_id, f.item_code, f.item_description, c.cost, c.is_active,
+       c.creation_date, c.inactive_date
+  FROM FOO_COST_SHEET_TBL c, FOO_FOOD_MST_TBL f
+ WHERE f.item_id = c.item_id
+ ORDER BY f.item_code, c.creation_date DESC;
+
+
 --------------------------------------------------------------------------------
--- MODULE: FOO (Menu / Food Master)
--- FILE:   05_sample_data.sql
--- DEPENDS ON: 02_tables.sql, 03_triggers.sql
+-- 6: Sample data
+-- DEPENDS ON- 2: Tables, 4: Triggers
 --------------------------------------------------------------------------------
 
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('B01', 1101, 'Idli', 'BREAKFAST');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('B02', 1102, 'Dosa', 'BREAKFAST');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('B03', 1103, 'Poha', 'BREAKFAST');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('B04', 1104, 'Upma', 'BREAKFAST');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('B05', 1105, 'Paratha', 'BREAKFAST');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('B06', 1201, 'Egg Omelette', 'BREAKFAST');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('B01', 1101, 'Poha', 'BREAKFAST');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('B02', 1102, 'Upma', 'BREAKFAST');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('B03', 1103, 'Idli Sambhar', 'BREAKFAST');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('B04', 1104, 'Medu Vada', 'BREAKFAST');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('B05', 1105, 'Dosa', 'BREAKFAST');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('B06', 1201, 'Omelette', 'BREAKFAST');
 
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('L01', 2101, 'Dal Rice', 'LUNCH');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('L02', 2102, 'Roti Sabji', 'LUNCH');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('L03', 2103, 'Chole Bhature', 'LUNCH');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('L04', 2104, 'Paneer Curry', 'LUNCH');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('L05', 2201, 'Chicken Biryani', 'LUNCH');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('L06', 2202, 'Chicken Tikka', 'LUNCH');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('L07', 2203, 'Fish Curry', 'LUNCH');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('L01', 2101, 'Dal Rice', 'LUNCH');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('L02', 2102, 'Roti Sabzi', 'LUNCH');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('L03', 2103, 'Veg Thali', 'LUNCH');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('L04', 2104, 'Paneer Masala', 'LUNCH');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('L05', 2201, 'Chicken Curry', 'LUNCH');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('L06', 2202, 'Egg Curry', 'LUNCH');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('L07', 2203, 'Fish Fry', 'LUNCH');
 
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('S01', 3101, 'Samosa', 'SNACKS');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('S02', 3102, 'Sandwich', 'SNACKS');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('S03', 3103, 'Pakora', 'SNACKS');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('S04', 3104, 'Biscuits', 'SNACKS');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('S05', 3201, 'Chicken Roll', 'SNACKS');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('S01', 3101, 'Samosa', 'SNACKS');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('S02', 3102, 'Vada Pav', 'SNACKS');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('S03', 3103, 'Pakora', 'SNACKS');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('S04', 3104, 'Biscuits', 'SNACKS');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('S05', 3201, 'Chicken Roll', 'SNACKS');
 
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('BV01', 4101, 'Tea', 'BEVERAGES');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('BV02', 4102, 'Coffee', 'BEVERAGES');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('BV03', 4103, 'Cold Drink', 'BEVERAGES');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('BV04', 4104, 'Lassi', 'BEVERAGES');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('BV05', 4105, 'Juice', 'BEVERAGES');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('BV01', 4101, 'Tea', 'BEVERAGES');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('BV02', 4102, 'Coffee', 'BEVERAGES');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('BV03', 4103, 'Cold Drink', 'BEVERAGES');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('BV04', 4104, 'Lassi', 'BEVERAGES');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('BV05', 4105, 'Juice', 'BEVERAGES');
 
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('D01', 5101, 'Gulab Jamun', 'DESSERTS');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('D02', 5102, 'Ice Cream', 'DESSERTS');
-INSERT INTO FOO_FOOD_MST_TBL (ITEM_CODE, ITEM_NUMBER, ITEM_DESCRIPTION, CATEGORY_CODE) VALUES ('D03', 5103, 'Kheer', 'DESSERTS');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('D01', 5101, 'Gulab Jamun', 'DESSERTS');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('D02', 5102, 'Ice Cream', 'DESSERTS');
+INSERT INTO FOO_FOOD_MST_TBL (item_code, item_number, item_description, category_code) VALUES ('D03', 5103, 'Kheer', 'DESSERTS');
 
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 30.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'B01';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 40.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'B02';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 35.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'B03';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 30.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'B04';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 40.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'B05';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 50.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'B06';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 60.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'L01';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 50.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'L02';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 80.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'L03';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 120.00 FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'L04';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 180.00 FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'L05';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 150.00 FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'L06';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 140.00 FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'L07';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 20.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'S01';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 40.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'S02';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 25.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'S03';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 10.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'S04';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 60.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'S05';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 10.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'BV01';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 15.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'BV02';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 25.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'BV03';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 30.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'BV04';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 35.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'BV05';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 40.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'D01';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 50.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'D02';
-INSERT INTO FOO_COST_SHEET_TBL (ITEM_ID, COST) SELECT ITEM_ID, 45.00  FROM FOO_FOOD_MST_TBL WHERE ITEM_CODE = 'D03';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 30.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'B01';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 40.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'B02';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 35.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'B03';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 30.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'B04';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 40.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'B05';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 50.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'B06';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 60.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'L01';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 50.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'L02';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 80.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'L03';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 120.00 FROM FOO_FOOD_MST_TBL WHERE item_code = 'L04';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 180.00 FROM FOO_FOOD_MST_TBL WHERE item_code = 'L05';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 150.00 FROM FOO_FOOD_MST_TBL WHERE item_code = 'L06';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 140.00 FROM FOO_FOOD_MST_TBL WHERE item_code = 'L07';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 20.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'S01';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 40.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'S02';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 25.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'S03';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 10.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'S04';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 60.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'S05';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 10.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'BV01';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 15.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'BV02';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 25.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'BV03';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 30.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'BV04';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 35.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'BV05';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 40.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'D01';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 50.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'D02';
+INSERT INTO FOO_COST_SHEET_TBL (item_id, cost) SELECT item_id, 45.00  FROM FOO_FOOD_MST_TBL WHERE item_code = 'D03';
 
 COMMIT;
