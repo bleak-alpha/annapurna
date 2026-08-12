@@ -1,12 +1,8 @@
 services:
   # ---------------------------------------------------------------------------
   # Oracle Database XE 21c
-  #
-  # Uses gvenzl/oracle-xe (Docker Hub) rather than Oracle's own registry:
-  # no docker login, no licence click-through, and ARM64 builds are available.
-  #
-  # APP_USER / APP_USER_PASSWORD make the image create the application schema
-  # and grant it on first boot, so no manual CREATE USER step is needed.
+  # gvenzl/oracle-xe: no docker login, no licence click-through, ARM64 builds.
+  # APP_USER / APP_USER_PASSWORD create the application schema on first boot.
   # ---------------------------------------------------------------------------
   database:
     image: ${ORACLE_IMAGE:-gvenzl/oracle-xe:21-slim}
@@ -17,16 +13,14 @@ services:
       APP_USER_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       TZ: ${TZ:-Asia/Kolkata}
     ports:
-      -"${DB_PORT:-1521}:1521"
+      - "${DB_PORT:-1521}:1521"
     volumes:
-      -oracle_data:/opt/oracle/oradata
+      - oracle_data:/opt/oracle/oradata
     networks:
-      -annapurna-net
+      - annapurna-net
     restart: unless-stopped
     shm_size: 1gb
     healthcheck:
-      # Ships with the image. Reports listener + PDB state, which is what
-      # "ready for connections" actually means here.
       test: ["CMD", "healthcheck.sh"]
       interval: 15s
       timeout: 10s
@@ -34,12 +28,9 @@ services:
       start_period: 180s
 
   # ---------------------------------------------------------------------------
-  # Schema installer. Runs 00-init.sql once, then exits.
-  #
-  # Deliberately NOT done via the image's /container-entrypoint-initdb.d mount:
-  # that only fires when the data volume is empty, so a rebuilt stack on an
-  # existing volume would silently start with no schema. A one-shot service is
-  # explicit and idempotent, and its exit code gates the backend.
+  # Schema installer. Runs annapurna-database/install.sh once, then exits.
+  # The script lives on disk rather than inline here: an embedded block scalar
+  # containing a heredoc is fragile under merges and editor reformatting.
   # ---------------------------------------------------------------------------
   db-init:
     image: ${ORACLE_IMAGE:-gvenzl/oracle-xe:21-slim}
@@ -51,32 +42,14 @@ services:
       APP_USER: ${DB_USER:-ANNAPURNA}
       APP_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       DB_SERVICE: ${DB_SERVICE:-XEPDB1}
+      DB_HOST: database
+      DB_PORT: 1521
     volumes:
-      -./annapurna-database:/sql:ro
+      - ./annapurna-database:/sql:ro
     networks:
-      -annapurna-net
-    working_dir: /sql
+      - annapurna-net
     restart: "no"
-    entrypoint: ["/bin/bash", "-c"]
-    command:
-      -|
-        set -e
-
-        echo "Checking whether the schema is already installed..."
-        INSTALLED=$$(sqlplus -S "$${APP_USER}/$${APP_PASSWORD}@//database:1521/$${DB_SERVICE}" <<-'EOSQL'
-          SET HEADING OFF FEEDBACK OFF PAGESIZE 0
-          SELECT COUNT(*) FROM user_tables WHERE table_name = 'INIT_HEALTH_STATUS_TBL';
-          EXIT
-        EOSQL
-        )
-
-        if [ "$$(echo $$INSTALLED | tr -d '[:space:]')" = "1" ]; then
-          echo "Schema already present. Skipping install."
-          exit 0
-        fi
-
-        echo "Running 00-init.sql..."
-        sqlplus -S "$${APP_USER}/$${APP_PASSWORD}@//database:1521/$${DB_SERVICE}" @00-init.sql
+    entrypoint: ["/bin/bash", "/sql/install.sh"]
 
   # ---------------------------------------------------------------------------
   # Spring Boot backend
@@ -104,11 +77,11 @@ services:
       JAVA_OPTS: ${JAVA_OPTS:--Xms512m -Xmx1024m}
       TZ: ${TZ:-Asia/Kolkata}
     ports:
-      -"${BACKEND_PORT:-8080}:8080"
+      - "${BACKEND_PORT:-8080}:8080"
     volumes:
-      -./logs/backend:/app/logs
+      - ./logs/backend:/app/logs
     networks:
-      -annapurna-net
+      - annapurna-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
