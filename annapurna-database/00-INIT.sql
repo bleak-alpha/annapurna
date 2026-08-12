@@ -29,7 +29,7 @@ SET DEFINE OFF
 WHENEVER SQLERROR EXIT SQL.SQLCODE ROLLBACK
 WHENEVER OSERROR  EXIT FAILURE ROLLBACK
 
-SPOOL install.log
+--SPOOL install.log
 
 PROMPT
 PROMPT ================================================================================
@@ -411,6 +411,6 @@ PROMPT  ANNAPURNA CANTEEN DATABASE - INSTALLATION COMPLETE
 PROMPT ================================================================================
 PROMPT
 
-SPOOL OFF
+--SPOOL OFF
 
 EXIT SUCCESS
