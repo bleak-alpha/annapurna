@@ -37,10 +37,54 @@ PROMPT  ANNAPURNA CANTEEN DATABASE - INSTALLATION STARTING
 PROMPT ================================================================================
 PROMPT
 
+-- Every object below is created without a schema prefix, so it is owned by
+-- whichever user runs this script. That keeps the DDL portable across schema
+-- names, but it also means connecting as the wrong user would silently build
+-- the application in the wrong place. Refuse to run unless the session is a
+-- dedicated, non-privileged application schema.
+DECLARE
+    v_user      VARCHAR2(128) := SYS_CONTEXT('USERENV','CURRENT_USER');
+    v_schema    VARCHAR2(128) := SYS_CONTEXT('USERENV','CURRENT_SCHEMA');
+    v_container VARCHAR2(128) := SYS_CONTEXT('USERENV','CON_NAME');
+    v_is_dba    NUMBER;
 BEGIN
-    DBMS_OUTPUT.PUT_LINE('Target schema : ' || SYS_CONTEXT('USERENV','CURRENT_SCHEMA'));
+    DBMS_OUTPUT.PUT_LINE('Connected as  : ' || v_user);
+    DBMS_OUTPUT.PUT_LINE('Owning schema : ' || v_schema);
+    DBMS_OUTPUT.PUT_LINE('Container     : ' || v_container);
     DBMS_OUTPUT.PUT_LINE('Database      : ' || SYS_CONTEXT('USERENV','DB_NAME'));
     DBMS_OUTPUT.PUT_LINE('Started at    : ' || TO_CHAR(SYSTIMESTAMP,'YYYY-MM-DD HH24:MI:SS'));
+    DBMS_OUTPUT.PUT_LINE('');
+
+    IF v_user IN ('SYS','SYSTEM') THEN
+        RAISE_APPLICATION_ERROR(-20001,
+            'Refusing to install into ' || v_user || '. Connect as the application ' ||
+            'schema (APP_USER in .env) so the objects are owned by it.');
+    END IF;
+
+    -- CURRENT_SCHEMA can be redirected by ALTER SESSION; if it no longer
+    -- matches the connected user, objects would land somewhere unexpected.
+    IF v_schema != v_user THEN
+        RAISE_APPLICATION_ERROR(-20002,
+            'CURRENT_SCHEMA (' || v_schema || ') does not match the connected user (' ||
+            v_user || '). Objects would not be owned by the connecting user.');
+    END IF;
+
+    -- A schema holding application data should not also be a DBA.
+    SELECT COUNT(*) INTO v_is_dba
+      FROM session_roles
+     WHERE role = 'DBA';
+
+    IF v_is_dba > 0 THEN
+        DBMS_OUTPUT.PUT_LINE('WARNING: this schema holds the DBA role. Grant only ' ||
+                             'CONNECT, RESOURCE and the CREATE privileges it needs.');
+    END IF;
+
+    IF v_container = 'CDB$ROOT' THEN
+        RAISE_APPLICATION_ERROR(-20003,
+            'Connected to CDB$ROOT. Connect to the pluggable database (XEPDB1) instead.');
+    END IF;
+
+    DBMS_OUTPUT.PUT_LINE('Schema check passed. All objects will be owned by ' || v_user || '.');
 END;
 /
 
@@ -271,6 +315,61 @@ BEGIN
         report('Manual-ID guards', TRUE, '8 of 8 present');
     END IF;
 
+    -- 10. Ownership: every application object must belong to this schema.
+    -- USER_OBJECTS is already owner-scoped, so compare its count against
+    -- ALL_OBJECTS filtered to the module prefixes to catch anything that
+    -- landed in another schema.
+    SELECT COUNT(*) INTO v_count
+      FROM ALL_OBJECTS
+     WHERE owner != SYS_CONTEXT('USERENV','CURRENT_USER')
+       AND (   object_name LIKE 'FOO\_%'   ESCAPE '\'
+            OR object_name LIKE 'CUST\_%'  ESCAPE '\'
+            OR object_name LIKE 'OM\_%'    ESCAPE '\'
+            OR object_name LIKE 'BILL\_%'  ESCAPE '\'
+            OR object_name LIKE 'AUDIT\_%' ESCAPE '\'
+            OR object_name LIKE 'RPT\_%'   ESCAPE '\');
+
+    IF v_count > 0 THEN
+        v_warnings := v_warnings + 1;
+        report('Object ownership', FALSE,
+               v_count || ' module object(s) owned by another schema');
+
+        FOR r IN (SELECT owner, object_type, object_name
+                    FROM ALL_OBJECTS
+                   WHERE owner != SYS_CONTEXT('USERENV','CURRENT_USER')
+                     AND (   object_name LIKE 'FOO\_%'   ESCAPE '\'
+                          OR object_name LIKE 'CUST\_%'  ESCAPE '\'
+                          OR object_name LIKE 'OM\_%'    ESCAPE '\'
+                          OR object_name LIKE 'BILL\_%'  ESCAPE '\'
+                          OR object_name LIKE 'AUDIT\_%' ESCAPE '\'
+                          OR object_name LIKE 'RPT\_%'   ESCAPE '\')
+                   ORDER BY owner, object_name) LOOP
+            DBMS_OUTPUT.PUT_LINE('    FOREIGN: ' || r.owner || '.' || r.object_name ||
+                                 ' (' || r.object_type || ')');
+        END LOOP;
+    ELSE
+        SELECT COUNT(*) INTO v_count FROM USER_OBJECTS;
+        report('Object ownership', TRUE,
+               v_count || ' object(s) owned by ' || SYS_CONTEXT('USERENV','CURRENT_USER'));
+    END IF;
+
+    -- Per-module inventory, so the owner of each module is visible at a glance.
+    DBMS_OUTPUT.PUT_LINE('');
+    DBMS_OUTPUT.PUT_LINE(' Module inventory (owner: ' || SYS_CONTEXT('USERENV','CURRENT_USER') || ')');
+    FOR r IN (
+        SELECT SUBSTR(object_name, 1, INSTR(object_name, '_') - 1) AS module_code,
+               COUNT(*) AS object_count
+          FROM USER_OBJECTS
+         WHERE INSTR(object_name, '_') > 0
+           AND SUBSTR(object_name, 1, INSTR(object_name, '_') - 1)
+               IN ('FOO','CUST','OM','BILL','AUDIT','RPT','INIT')
+         GROUP BY SUBSTR(object_name, 1, INSTR(object_name, '_') - 1)
+         ORDER BY module_code
+    ) LOOP
+        DBMS_OUTPUT.PUT_LINE('   ' || RPAD(r.module_code, 10) || r.object_count || ' object(s)');
+    END LOOP;
+    DBMS_OUTPUT.PUT_LINE('');
+
     -- Verdict
     DBMS_OUTPUT.PUT_LINE('--------------------------------------------------------------------------------');
 
@@ -302,7 +401,7 @@ CREATE TABLE INIT_HEALTH_STATUS_TBL (
 );
 
 INSERT INTO INIT_HEALTH_STATUS_TBL (status_id, status, schema_name)
-VALUES (1, 'HEALTHY', SYS_CONTEXT('USERENV','CURRENT_SCHEMA'));
+VALUES (1, 'HEALTHY', SYS_CONTEXT('USERENV','CURRENT_USER'));
 
 COMMIT;
 
