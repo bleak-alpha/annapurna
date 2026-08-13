@@ -7,7 +7,12 @@ public enum ResponseCode {
     INA_CANTEEN_CODE_202(202,"Data Already Present in DB, Kindly add another Data"),
     INA_CANTEEN_CODE_99999(99999,"Technical Error"),
     INA_CANTEEN_CODE_203(203,"Customer Deleted Successfully"),
-    INA_CANTEEN_CODE_204(204,"Customer Data updated in DB Successfully");
+    INA_CANTEEN_CODE_204(204,"Customer Data updated in DB Successfully"),
+    INA_CANTEEN_CODE_205(1,"Invalid Data Provided"),
+    INA_CANTEEN_CODE_206(200,"Audit Table and Customer Dues Updated Successfully"),
+    INA_CANTEEN_CODE_207(201,"Audit Table data updated Failed to customer dues update"),
+    INA_CANTEEN_CODE_208(201,"Customer dues updated successfully failed to update audit table data"),
+    INA_CANTEEN_CODE_109(109,"Failed to update data in audit table");
 
 
 

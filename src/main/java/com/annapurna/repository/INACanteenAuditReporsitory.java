@@ -11,8 +11,9 @@ import java.util.Optional;
 @Repository
 public interface INACanteenAuditReporsitory extends JpaRepository<InaAuditTable, Long> {
 
-    List<InaAuditTable> findByCreatedDateBetween(
-            LocalDateTime start,
-            LocalDateTime end
-    );
+    List<InaAuditTable> findByCreatedDateBetween(LocalDateTime start, LocalDateTime end);
+
+    Optional<InaAuditTable> findById(Long id);
+
+    List<InaAuditTable> findBytableUpdateStatusIn(List<String> value);
 }

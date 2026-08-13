@@ -35,7 +35,6 @@ public class NewCustomerServiceImpl implements NewCustomerService {
                return buildResponse(INA_CANTEEN_CODE_202.getKey(),INA_CANTEEN_CODE_202.getValue());
             }
             String customerNo = generateCustomerNumber();
-
             CustomerPersonAcc entity = new CustomerPersonAcc();
             entity.setCustomerEmail(request.getEmail());
             entity.setPhone(request.getPhone());

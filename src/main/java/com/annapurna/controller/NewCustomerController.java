@@ -1,6 +1,8 @@
 package com.annapurna.controller;
 
-import com.annapurna.exception.DatabaseOperationException;
+
+import com.annapurna.constant.ApiConstant;
+import com.annapurna.constant.AppConstant;
 import com.annapurna.model.customer.NewCustomerRequest;
 import com.annapurna.model.customer.NewCustomerResponse;
 import com.annapurna.model.customer.UpdateDeleteRequest;
@@ -27,7 +29,7 @@ public class NewCustomerController {
     @Autowired
     private NewCustomerService newCustomerService;
 
-    @PostMapping("/addCustomer")
+    @PostMapping(ApiConstant.ADD_CUSTOMER)
     public ResponseEntity<NewCustomerResponse> addCustomer(@Valid @RequestBody NewCustomerRequest request) {
         try {
             NewCustomerResponse response = newCustomerService.addCustomer(request);
@@ -43,7 +45,7 @@ public class NewCustomerController {
         }
     }
 
-    @PostMapping("/updateAndDeleteCustData")
+    @PostMapping(ApiConstant.UPDATE_ORDER)
     public ResponseEntity<NewCustomerResponse> updateDeleteCustomer(@Valid @RequestBody UpdateDeleteRequest request) {
         try {
             NewCustomerResponse response = newCustomerService.updateDeleteCustData(request);

@@ -20,7 +20,7 @@ import java.time.LocalDate;
 @Log4j2
 public class ReportSchdular {
 
-    @Value("${schdular.report.active}")
+    @Value("${scheduler.report.active}")
     private boolean isActive;
 
     @Value("${report.email.receiveremail}")

@@ -1,13 +1,13 @@
 spring:
   application:
     name: annapurna-backend
-  
+
   datasource:
-    url: jdbc:postgresql://localhost:5432/inacanteen
-    username: postgres
+    url: jdbc:mysql://localhost:3306/inacanteen
+    username: root
     password: root
-    driver-class-name: org.postgresql.Driver
-    
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -69,9 +69,20 @@ whatsapp:
   access-token: EAANY2yUCS9kBRkGdQ1IE1Qa8LIddLtFHoEVXXZBTzCUKV8VoklcZCdWgUKifYwXP5Mku1uL4ZB8ZCgaInUA7TCp2D7kRPZBr9VCbGJqw2eJ8FbWtxCtaP4nVyZCDZAM5bB0L3JZC62g9MhVt3dtO5Y8ZArFzw2JnxEtscqHFPxhuGYpOjePPKxPCWHVHjFmWnBU5ojPhperIhOrk2LTfHZBoaeCBgwA59UevKMLeRNDx5OS1ZAoiWAZCZChf0CmoehkPOQMtJxs0vufrRRkwywziZAGBq2
   phonenumber-id: 1182731761590420
 
-schdular:
+scheduler:
   report:
     cron: 0 0/5 * * * *
     active: true
+
+  updatedata:
+    fulldata:
+      cron: 0 0/2 * * * *
+      active: true
+    customerdues:
+      cron:
+      active: false
+    orderdata:
+      cron:
+      active: true
 
 
