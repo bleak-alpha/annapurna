@@ -1,0 +1,217 @@
+--------------------------------------------------------------------------------
+-- ANNAPURNA CANTEEN DB - BILL MODULE (Payments & Credit History)
+-- MODULE CODE: BILL   (derived from file name 04-BILL.sql)
+-- Run order: 01-FOO -> 02-CUST -> 03-OM -> 04-BILL -> 05-AUDIT -> 06-RPT
+--
+-- NAMING: <MODULE>_<NAME>_<TYPE>   TBL SEQ TRG V PRC FUNC IDX
+-- JOINS : WHERE-clause only. ANSI JOIN syntax is never used.
+--
+-- NOTE: objects formerly prefixed CUST_ (CUST_PAYMENT_HIST, CUST_ORDER_HIST)
+--       are renamed to BILL_ so the prefix matches the owning file/module.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- 1: sequences
+--------------------------------------------------------------------------------
+CREATE SEQUENCE BILL_PAYMENT_HIST_SEQ
+    START WITH 100000
+    INCREMENT BY 1
+    MINVALUE 100000
+    MAXVALUE 999999999999
+    NOCYCLE
+    CACHE 20;
+
+CREATE SEQUENCE BILL_ORDER_HIST_SEQ START WITH 1 INCREMENT BY 1 NOCYCLE CACHE 20;
+
+
+--------------------------------------------------------------------------------
+-- 2: tables
+-- DEPENDS ON- 1: sequences, CUST module (CUST_PERSON_ACC_TBL), OM module (OM_ORDER_LINES_TBL)
+--------------------------------------------------------------------------------
+
+CREATE TABLE BILL_PAYMENT_HIST_TBL (
+    payment_id     NUMBER(12)    DEFAULT BILL_PAYMENT_HIST_SEQ.NEXTVAL PRIMARY KEY,
+    customer_id    NUMBER(10)    NOT NULL,
+    creation_date  TIMESTAMP     DEFAULT SYSTIMESTAMP NOT NULL,
+    payment_date   TIMESTAMP,
+    payment_mode   VARCHAR2(20),
+    amount_paid    NUMBER(10,2)  NOT NULL,
+    reference_no   VARCHAR2(100),
+    created_by     VARCHAR2(100) DEFAULT 'SYSTEM',
+    updated_date   TIMESTAMP,
+    updated_by     VARCHAR2(100),
+    is_active      NUMBER(1)     DEFAULT 1 NOT NULL,
+    version_no     NUMBER(10)    DEFAULT 0 NOT NULL,
+    CONSTRAINT fk_payment_customer FOREIGN KEY (customer_id) REFERENCES CUST_PERSON_ACC_TBL(customer_id),
+    CONSTRAINT chk_payment_mode   CHECK (payment_mode IN ('CASH','ONLINE','UPI','CARD','WALLET','MIXED')),
+    CONSTRAINT chk_amount_paid    CHECK (amount_paid > 0),
+    CONSTRAINT chk_payment_active CHECK (is_active IN (0,1))
+);
+
+CREATE TABLE BILL_ORDER_HIST_TBL (
+    hist_id        NUMBER(10)    DEFAULT BILL_ORDER_HIST_SEQ.NEXTVAL PRIMARY KEY,
+    customer_id    NUMBER(10)    NOT NULL,
+    line_id        NUMBER(10)    NOT NULL,
+    is_paid_now    NUMBER(1)     DEFAULT 0,
+    payment_id     NUMBER(12),
+    creation_date  TIMESTAMP     DEFAULT SYSTIMESTAMP NOT NULL,
+    created_by     VARCHAR2(100) DEFAULT 'SYSTEM',
+    updated_date   TIMESTAMP,
+    updated_by     VARCHAR2(100),
+    is_active      NUMBER(1)     DEFAULT 1 NOT NULL,
+    version_no     NUMBER(10)    DEFAULT 0 NOT NULL,
+    CONSTRAINT fk_bill_hist_customer FOREIGN KEY (customer_id) REFERENCES CUST_PERSON_ACC_TBL(customer_id),
+    CONSTRAINT fk_bill_hist_line     FOREIGN KEY (line_id)     REFERENCES OM_ORDER_LINES_TBL(line_id),
+    CONSTRAINT fk_bill_hist_payment  FOREIGN KEY (payment_id)  REFERENCES BILL_PAYMENT_HIST_TBL(payment_id),
+    CONSTRAINT uq_customer_line      UNIQUE (customer_id, line_id),
+    CONSTRAINT chk_hist_paid_now     CHECK (is_paid_now IN (0,1)),
+    CONSTRAINT chk_hist_active       CHECK (is_active IN (0,1))
+);
+
+
+--------------------------------------------------------------------------------
+-- 3: indexes
+-- DEPENDS ON- 2: tables
+--------------------------------------------------------------------------------
+CREATE INDEX BILL_PAYMENT_CUSTOMER_IDX  ON BILL_PAYMENT_HIST_TBL (customer_id);
+--CREATE INDEX BILL_PAYMENT_DATE_IDX      ON BILL_PAYMENT_HIST_TBL (payment_date);
+--CREATE INDEX BILL_PAYMENT_MODE_IDX      ON BILL_PAYMENT_HIST_TBL (payment_mode);
+CREATE INDEX BILL_ORDER_HIST_CUST_IDX   ON BILL_ORDER_HIST_TBL (customer_id, is_paid_now);
+CREATE INDEX BILL_ORDER_HIST_LINE_IDX   ON BILL_ORDER_HIST_TBL (line_id);
+
+
+--------------------------------------------------------------------------------
+-- 4: triggers
+-- DEPENDS ON- 1: sequences, 2: tables
+--------------------------------------------------------------------------------
+
+-- Prevent manual payment_id insertion (sequence-only)
+CREATE OR REPLACE TRIGGER BILL_PREVENT_MANUAL_PAYMENT_ID_TRG
+    BEFORE INSERT ON BILL_PAYMENT_HIST_TBL
+    FOR EACH ROW
+DECLARE
+    v_currval NUMBER;
+BEGIN
+    IF :NEW.payment_id IS NOT NULL THEN
+        BEGIN
+            v_currval := BILL_PAYMENT_HIST_SEQ.CURRVAL;
+        EXCEPTION
+            WHEN OTHERS THEN
+                IF SQLCODE = -8002 THEN   -- CURRVAL not yet defined in this session
+                    RETURN;
+                END IF;
+                RAISE;
+        END;
+
+        IF :NEW.payment_id != v_currval THEN
+            RAISE_APPLICATION_ERROR(-20401,
+                'Cannot manually set payment_id. It must be generated by BILL_PAYMENT_HIST_SEQ.');
+        END IF;
+    END IF;
+END;
+/
+
+-- Prevent manual hist_id insertion (sequence-only)
+CREATE OR REPLACE TRIGGER BILL_PREVENT_MANUAL_HIST_ID_TRG
+    BEFORE INSERT ON BILL_ORDER_HIST_TBL
+    FOR EACH ROW
+DECLARE
+    v_currval NUMBER;
+BEGIN
+    IF :NEW.hist_id IS NOT NULL THEN
+        BEGIN
+            v_currval := BILL_ORDER_HIST_SEQ.CURRVAL;
+        EXCEPTION
+            WHEN OTHERS THEN
+                IF SQLCODE = -8002 THEN
+                    RETURN;
+                END IF;
+                RAISE;
+        END;
+
+        IF :NEW.hist_id != v_currval THEN
+            RAISE_APPLICATION_ERROR(-20402,
+                'Cannot manually set hist_id. It must be generated by BILL_ORDER_HIST_SEQ.');
+        END IF;
+    END IF;
+END;
+/
+
+-- On payment insert: settle credit history, mark lines paid, reduce outstanding due
+CREATE OR REPLACE TRIGGER BILL_UPDATE_HIST_ON_PAYMENT_TRG
+    AFTER INSERT ON BILL_PAYMENT_HIST_TBL
+    FOR EACH ROW
+BEGIN
+    UPDATE BILL_ORDER_HIST_TBL
+       SET payment_id   = :NEW.payment_id,
+           is_paid_now  = 1,
+           updated_date = SYSTIMESTAMP
+     WHERE customer_id = :NEW.customer_id
+       AND is_paid_now = 0;
+
+    UPDATE OM_ORDER_LINES_TBL ol
+       SET ol.is_paid = 1,
+           ol.updated_date = SYSTIMESTAMP
+     WHERE ol.line_id IN (
+        SELECT boh.line_id
+          FROM BILL_ORDER_HIST_TBL boh
+         WHERE boh.customer_id = :NEW.customer_id
+           AND boh.payment_id = :NEW.payment_id
+     );
+
+    UPDATE CUST_PERSON_ACC_TBL
+       SET total_due = GREATEST(total_due - :NEW.amount_paid, 0)
+     WHERE customer_id = :NEW.customer_id;
+END;
+/
+
+
+--------------------------------------------------------------------------------
+-- 5: views
+-- DEPENDS ON- 2: tables, CUST module, OM module, FOO module
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE VIEW BILL_UNPAID_ORDER_LINES_V AS
+SELECT boh.hist_id, c.customer_id, c.name AS customer_name,
+       ol.line_id, oh.order_number, ol.creation_date,
+       fm.item_description, ol.quantity, ol.total_cost
+  FROM BILL_ORDER_HIST_TBL boh, CUST_PERSON_ACC_TBL c, OM_ORDER_LINES_TBL ol,
+       OM_ORDER_HEADERS_TBL oh, FOO_FOOD_MST_TBL fm
+ WHERE boh.line_id = ol.line_id
+   AND boh.customer_id = c.customer_id
+   AND ol.header_id = oh.header_id
+   AND ol.item_id = fm.item_id
+   AND boh.is_paid_now = 0;
+
+CREATE OR REPLACE VIEW BILL_PAYMENT_HISTORY_V AS
+SELECT bph.payment_id, c.customer_id, c.name AS customer_name,
+       bph.amount_paid, bph.payment_mode, bph.payment_date, bph.reference_no
+  FROM BILL_PAYMENT_HIST_TBL bph, CUST_PERSON_ACC_TBL c
+ WHERE bph.customer_id = c.customer_id
+ ORDER BY bph.payment_date DESC;
+
+
+--------------------------------------------------------------------------------
+-- 6: sample data
+-- DEPENDS ON- 2: tables, 4: triggers, CUST + OM sample data loaded
+--------------------------------------------------------------------------------
+
+-- Register the deferred line created in the OM sample data as customer credit
+INSERT INTO BILL_ORDER_HIST_TBL (customer_id, line_id, is_paid_now)
+SELECT c.customer_id, ol.line_id, 0
+  FROM CUST_PERSON_ACC_TBL c, OM_ORDER_HEADERS_TBL oh, OM_ORDER_LINES_TBL ol
+ WHERE oh.customer_id = c.customer_id
+   AND ol.header_id = oh.header_id
+   AND c.customer_number = 'CUST001'
+   AND oh.is_deferred = 1;
+
+UPDATE CUST_PERSON_ACC_TBL
+   SET total_due = 180.00
+ WHERE customer_number = 'CUST001';
+
+COMMIT;
+
+-- Example settlement (left commented so the demo due is not silently cleared):
+-- INSERT INTO BILL_PAYMENT_HIST_TBL (customer_id, payment_date, payment_mode, amount_paid)
+-- SELECT customer_id, SYSTIMESTAMP, 'CASH', 180.00 FROM CUST_PERSON_ACC_TBL WHERE customer_number = 'CUST001';
+-- COMMIT;

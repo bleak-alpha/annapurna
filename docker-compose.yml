@@ -1,0 +1,99 @@
+services:
+  # ---------------------------------------------------------------------------
+  # Oracle Database XE 21c
+  # gvenzl/oracle-xe: no docker login, no licence click-through, ARM64 builds.
+  # APP_USER / APP_USER_PASSWORD create the application schema on first boot.
+  # ---------------------------------------------------------------------------
+  database:
+    image: ${ORACLE_IMAGE:-gvenzl/oracle-xe:21-slim}
+    container_name: annapurna_oracle
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_SYS_PASSWORD:?ORACLE_SYS_PASSWORD is required}
+      APP_USER: ${DB_USER:-ANNAPURNA}
+      APP_USER_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      TZ: ${TZ:-Asia/Kolkata}
+    ports:
+      - "${DB_PORT:-1521}:1521"
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+    networks:
+      - annapurna-net
+    restart: unless-stopped
+    shm_size: 1gb
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 180s
+
+  # ---------------------------------------------------------------------------
+  # Schema installer. Runs annapurna-database/install.sh once, then exits.
+  # The script lives on disk rather than inline here: an embedded block scalar
+  # containing a heredoc is fragile under merges and editor reformatting.
+  # ---------------------------------------------------------------------------
+  db-init:
+    image: ${ORACLE_IMAGE:-gvenzl/oracle-xe:21-slim}
+    container_name: annapurna_db_init
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      APP_USER: ${DB_USER:-ANNAPURNA}
+      APP_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_SERVICE: ${DB_SERVICE:-XEPDB1}
+      DB_HOST: database
+      DB_PORT: 1521
+    volumes:
+      - ./annapurna-database:/sql:ro
+    networks:
+      - annapurna-net
+    restart: "no"
+    entrypoint: ["/bin/bash", "/sql/install.sh"]
+
+  # ---------------------------------------------------------------------------
+  # Spring Boot backend
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./annapurna-backend
+      dockerfile: Dockerfile
+    container_name: annapurna_backend
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@//database:1521/${DB_SERVICE:-XEPDB1}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-ANNAPURNA}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: oracle.jdbc.OracleDriver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.OracleDialect
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN}
+      WHATSAPP_PHONENUMBER_ID: ${WHATSAPP_PHONENUMBER_ID}
+      JAVA_OPTS: ${JAVA_OPTS:--Xms512m -Xmx1024m}
+      TZ: ${TZ:-Asia/Kolkata}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - ./logs/backend:/app/logs
+    networks:
+      - annapurna-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+volumes:
+  oracle_data:
+    driver: local
+
+networks:
+  annapurna-net:
+    driver: bridge
