@@ -28,7 +28,7 @@ CREATE TABLE INA_CANTEEN_AUDIT (
     created_date    TIMESTAMP     DEFAULT SYSTIMESTAMP NOT NULL
 );
 
-CREATE INDEX IDX_AUDIT_CREATED_DATE ON INA_CANTEEN_AUDIT(created_date);
+--CREATE INDEX IDX_AUDIT_CREATED_DATE ON INA_CANTEEN_AUDIT(created_date);
 --------------------------------------------------------------------------------
 -- MODULE: AUDIT (Order-Sheet / Dashboard Audit Log)
 -- FILE:   03_sample_data.sql

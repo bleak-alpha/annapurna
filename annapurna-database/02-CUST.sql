@@ -41,9 +41,9 @@ CREATE TABLE CUST_PERSON_ACC_TBL (
 -- 3: indexes
 -- DEPENDS ON- 2: tables
 --------------------------------------------------------------------------------
-CREATE INDEX CUST_PERSON_ACC_PHONE_IDX     ON CUST_PERSON_ACC_TBL (phone);
-CREATE INDEX CUST_PERSON_ACC_ACTIVE_IDX    ON CUST_PERSON_ACC_TBL (is_active);
-CREATE INDEX CUST_PERSON_ACC_TOTAL_DUE_IDX ON CUST_PERSON_ACC_TBL (total_due);
+--CREATE INDEX CUST_PERSON_ACC_PHONE_IDX     ON CUST_PERSON_ACC_TBL (phone);
+--CREATE INDEX CUST_PERSON_ACC_ACTIVE_IDX    ON CUST_PERSON_ACC_TBL (is_active);
+--CREATE INDEX CUST_PERSON_ACC_TOTAL_DUE_IDX ON CUST_PERSON_ACC_TBL (total_due);
 
 
 --------------------------------------------------------------------------------
