@@ -97,7 +97,7 @@ public class OrderService {
             
             // Update customer total due
             CustomerPersonAcc customer = orderHeader.getCustomer();
-            customer.setTotalDue(customer.getTotalDue().add(totalOrderAmount));
+            customer.setTotalDue(customer.getTotalDue());
             customerRepository.save(customer);
         }
         

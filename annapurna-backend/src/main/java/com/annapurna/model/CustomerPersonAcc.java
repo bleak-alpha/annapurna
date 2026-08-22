@@ -34,5 +34,8 @@ public class CustomerPersonAcc {
     private Boolean isActive = true;
     
     @Column(name = "total_due", precision = 10, scale = 2)
-    private BigDecimal totalDue = BigDecimal.ZERO;
+    private BigDecimal totalDue ;
+
+    @Column(name = "customer_email", nullable = false)
+    private String customerEmail;
 }

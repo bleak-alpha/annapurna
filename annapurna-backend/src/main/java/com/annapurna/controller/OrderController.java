@@ -1,13 +1,21 @@
 package com.annapurna.controller;
 
+import com.annapurna.constant.ApiConstant;
 import com.annapurna.dto.*;
+import com.annapurna.dto.Order.OrderRequest;
+import com.annapurna.dto.Order.UpdateOrderRequest;
+import com.annapurna.model.generic.GenericResponse;
 import com.annapurna.service.OrderService;
+import com.annapurna.service.OrderServicee;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
+
+import static com.annapurna.enums.ResponseCode.INA_CANTEEN_CODE_99999;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -15,6 +23,8 @@ import java.util.Map;
 public class OrderController {
     
     private final OrderService orderService;
+
+    private final OrderServicee orderServicee;
 
     
     @PostMapping
@@ -46,6 +56,36 @@ public class OrderController {
     @GetMapping("/{orderId}")
     public ResponseEntity<OrderResponse> getOrderById(@PathVariable Integer orderId) {
         return ResponseEntity.ok(orderService.getOrderById(orderId));
+    }
+
+    @PostMapping(ApiConstant.ADD_ORDER)
+    public ResponseEntity<GenericResponse> addOrder(@RequestBody OrderRequest request){
+        try {
+            GenericResponse response= orderServicee.addOrder(request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e){
+          GenericResponse  response = (GenericResponse.builder()
+                            .errorMessage(INA_CANTEEN_CODE_99999.getValue())
+                            .errorCode(INA_CANTEEN_CODE_99999.getKey()).build());
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(response);
+        }
+    }
+
+    @PostMapping(ApiConstant.UPDATE_ORDER)
+    public ResponseEntity<GenericResponse> updateOrder(@RequestBody UpdateOrderRequest request){
+        try {
+            GenericResponse response = orderServicee.updateOrder(request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e){
+            GenericResponse  response = (GenericResponse.builder()
+                    .errorMessage(INA_CANTEEN_CODE_99999.getValue())
+                    .errorCode(INA_CANTEEN_CODE_99999.getKey()).build());
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(response);
+        }
     }
 
 

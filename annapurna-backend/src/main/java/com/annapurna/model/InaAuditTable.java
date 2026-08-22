@@ -1,11 +1,15 @@
 package com.annapurna.model;
 
+import com.annapurna.dto.Order.OrderDetails;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Data
@@ -20,29 +24,49 @@ public class InaAuditTable {
     private Long id;
 
     @Column(name = "CUSTOMER_NAME")
-    private String custmerName;
+    private String customerName;
 
     @Column(name = "CUSTOMER_ID")
     private String customerId;
 
-    @Column(name = "TABLE_NO")
-    private String tableNo;
+    @Column(name = "EAT_MODE")
+    private String eatMode;
 
-    @Column(name = "ORDER_DETAILS")
-    private String orderDetails;
+    /*
+    In this Column stored order details in List of (String and Integer Formate)
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "ORDER_ITEMS", columnDefinition = "json")
+    private List<OrderDetails> orderDetails;
 
     @Column(name = "TOTAL_PAYMENT")
-    private double totalPayment;
+    private Integer totalPayment;
 
-    @Column(name = "PAYMENT_METHOD")
-    private String paymentMethod;
+    @Column(name = "PAID_AMOUNT")
+    private Integer paidAmount;
 
-    @Column(name = "DUE_AMOUNT")
-    private String dueAmount;
+    @Column(name = "REMAINING_AMOUNT")
+    private Integer remainingAmount;
+
+    @Column(name = "PAYMENT_MODE")
+    private String paymentMode;
 
     @Column(name = "ORDER_STATUS")
     private String orderStatus;
 
     @Column(name = "CREATED_DATE")
     private LocalDateTime createdDate;
+
+    @Column(name = "UPDATED_AT")
+    private LocalDateTime updatedAt;
+
+    /*
+    In this column add status for schedulers 0= Success, 2= Need to Update Data, 3= Failed To Update
+     */
+    @Column(name="TABLE_UPDATE_STATUS")
+    private String tableUpdateStatus;
+
+    @Column(name = "DUE_PAID_AMOUNT")
+    private int duePaidAmount;
+    
 }
